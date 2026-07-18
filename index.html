@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#131B12">
+  <title>Ruca Cuero</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%237FA636' stroke='%232A1C14' stroke-width='3'/%3E%3Cpath d='M16 16a5 5 0 1 1 5 5' fill='none' stroke='%232A1C14' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preload" href="fonts/chango-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/bricolage-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <header id="hud">
+    <div id="height-wrap">
+      <div id="height">0,0<span class="unit">m</span></div>
+      <div id="record">récord 0,0 m</div>
+    </div>
+    <div class="counter" id="ants-counter" title="Hormigas">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="17" rx="3.2" ry="2.5" fill="currentColor"/><circle cx="12" cy="11.8" r="1.9" fill="currentColor"/><circle cx="12" cy="7.6" r="2.5" fill="currentColor"/><path d="M10.7 5.9 9.2 3.8M13.3 5.9 14.8 3.8M9.9 12l-3-1M14.1 12l3-1M9.7 16l-2.9 1.5M14.3 16l2.9 1.5M10.2 18.8 8.4 21.2M13.8 18.8 15.6 21.2"/></g></svg>
+      <span id="ants-n">0</span>
+    </div>
+    <div class="counter" id="sap-counter" title="Savia">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c3 4.4 5.8 7.6 5.8 10.8a5.8 5.8 0 0 1-11.6 0C6.2 10.6 9 7.4 12 3z" fill="currentColor"/></svg>
+      <span id="sap-n">0</span>
+      <div id="sap-bar"><i></i></div>
+    </div>
+  </header>
+
+  <div id="feedback" aria-live="polite"></div>
+  <div id="hint">mantené presionado para cargar el salto<br>soltá cuando la marca llegue al nudo</div>
+
+  <button id="shop-btn" aria-label="Abrir hormiguero">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="17" rx="3.2" ry="2.5" fill="currentColor"/><circle cx="12" cy="11.8" r="1.9" fill="currentColor"/><circle cx="12" cy="7.6" r="2.5" fill="currentColor"/><path d="M10.7 5.9 9.2 3.8M13.3 5.9 14.8 3.8M9.9 12l-3-1M14.1 12l3-1M9.7 16l-2.9 1.5M14.3 16l2.9 1.5M10.2 18.8 8.4 21.2M13.8 18.8 15.6 21.2"/></g></svg>
+  </button>
+
+  <div id="scrim" hidden></div>
+  <section id="shop" class="sheet" hidden aria-label="Hormiguero">
+    <div class="sheet-handle"></div>
+    <h2 class="display">Hormiguero</h2>
+    <p class="sheet-sub">Las hormigas trabajan mientras el juego está abierto.</p>
+    <div id="upgrade-list"></div>
+    <h2 class="display sap-title">Savia</h2>
+    <p class="sheet-sub">La savia nunca se gasta: cada umbral desbloquea algo para siempre.</p>
+    <div id="unlock-list"></div>
+  </section>
+
+  <div id="toasts"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
