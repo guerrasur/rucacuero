@@ -30,10 +30,16 @@
   </header>
 
   <div id="feedback" aria-live="polite"></div>
+  <div id="zone-banner" aria-live="polite"><b></b><span></span></div>
   <div id="hint">mantené presionado para cargar el salto<br>soltá cuando la marca llegue al nudo</div>
 
   <button id="shop-btn" aria-label="Abrir hormiguero">
     <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="17" rx="3.2" ry="2.5" fill="currentColor"/><circle cx="12" cy="11.8" r="1.9" fill="currentColor"/><circle cx="12" cy="7.6" r="2.5" fill="currentColor"/><path d="M10.7 5.9 9.2 3.8M13.3 5.9 14.8 3.8M9.9 12l-3-1M14.1 12l3-1M9.7 16l-2.9 1.5M14.3 16l2.9 1.5M10.2 18.8 8.4 21.2M13.8 18.8 15.6 21.2"/></g></svg>
+  </button>
+
+  <button id="mute-btn" aria-label="Silenciar sonido">
+    <svg id="icon-sound" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6.5 9H3.5v6h3L11 19V5z" fill="currentColor"/><path d="M15 9.5c1 1.2 1 3.8 0 5M17.8 7c2 2.6 2 7.4 0 10"/></g></svg>
+    <svg id="icon-muted" viewBox="0 0 24 24" aria-hidden="true" hidden><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6.5 9H3.5v6h3L11 19V5z" fill="currentColor"/><path d="m15.5 9.5 5 5M20.5 9.5l-5 5"/></g></svg>
   </button>
 
   <div id="scrim" hidden></div>
@@ -41,6 +47,7 @@
     <div class="sheet-handle"></div>
     <h2 class="display">Hormiguero</h2>
     <p class="sheet-sub">Las hormigas trabajan mientras el juego está abierto.</p>
+    <p id="shop-stats"></p>
     <div id="upgrade-list"></div>
     <h2 class="display sap-title">Savia</h2>
     <p class="sheet-sub">La savia nunca se gasta: cada umbral desbloquea algo para siempre.</p>
