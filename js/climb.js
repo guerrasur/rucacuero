@@ -50,10 +50,21 @@ export function knotHeight(i) {
   }
   return knots[i];
 }
+// Primer nudo estrictamente por encima de h (búsqueda binaria sobre el memo,
+// construyendo bajo demanda: O(log n) por frame en vez de recorrer desde 0).
+export function knotIndexAbove(h) {
+  while (knots[knots.length - 1] <= h) knotHeight(knots.length);
+  let lo = 0;
+  let hi = knots.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (knots[mid] <= h) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
 export function nextKnotIndex(h) {
-  let i = 0;
-  while (knotHeight(i) <= h + 0.01) i++;
-  return i;
+  return knotIndexAbove(h + 0.01);
 }
 export function knotHasSap(i) {
   if (i === 0) return false;
@@ -117,6 +128,8 @@ export const climb = {
   jumpsSinceResin: RESIN_EVERY,
   chargeAlpha: 0, // para desvanecer overlays de carga en el render
   lastZone: null,
+  // modificadores externos (lluvia, etc.) inyectados por main
+  mods: { slipBonus: () => 0, sweetMul: () => 1 },
   events: [],
 
   emit(type, data) {
@@ -129,7 +142,7 @@ export const climb = {
   },
 
   sweetW() {
-    return (wind.windy() ? SWEET_WIND : SWEET_BASE) * zoneAt(state.height).sweetMul;
+    return (wind.windy() ? SWEET_WIND : SWEET_BASE) * zoneAt(state.height).sweetMul * this.mods.sweetMul();
   },
   landingH() {
     return state.height + this.power * MAX_JUMP;
@@ -177,7 +190,8 @@ export const climb = {
     }
     // agarre limpio: tirada de mala suerte (salvo encadenado de salto largo)
     this.jumpsSinceResin += 1;
-    if (!this.chainSafe && Math.random() < slipChance(wind.windy())) {
+    const slipP = Math.min(0.6, slipChance(wind.windy()) + this.mods.slipBonus());
+    if (!this.chainSafe && Math.random() < slipP) {
       if (state.unlocks.includes('resina') && this.jumpsSinceResin >= RESIN_EVERY) {
         this.jumpsSinceResin = 0;
         this.emit('resin');

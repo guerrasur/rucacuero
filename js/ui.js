@@ -12,6 +12,7 @@ import {
 import { climb, wind } from './climb.js';
 import { SAP_RATE, antRate as antRateFn, slipChance } from './economy.js';
 import * as audio from './audio.js';
+import * as quests from './quests.js';
 
 const $ = id => document.getElementById(id);
 const ANT_SVG =
@@ -27,8 +28,9 @@ const fmtH = h =>
 
 export function init() {
   els = {
-    height: $('height'),
+    heightN: $('height-n'),
     record: $('record'),
+    questText: $('quest-text'),
     ants: $('ants-n'),
     sap: $('sap-n'),
     sapBar: document.querySelector('#sap-bar i'),
@@ -98,6 +100,7 @@ function buildShop() {
       if (buy(def)) {
         audio.ensure();
         audio.buy();
+        quests.note('buy');
         refreshShop(true);
       }
     });
@@ -172,12 +175,22 @@ export function toast(unlockDef) {
   refreshShop(true);
 }
 
-export function showZone(zone) {
-  els.zoneBanner.querySelector('b').textContent = zone.name;
-  els.zoneBanner.querySelector('span').textContent = `${zone.at} m`;
+// banner central display: cambios de zona, lluvia, etc.
+export function showBanner(title, sub) {
+  els.zoneBanner.querySelector('b').textContent = title;
+  els.zoneBanner.querySelector('span').textContent = sub;
   els.zoneBanner.className = '';
   void els.zoneBanner.offsetWidth;
   els.zoneBanner.className = 'show';
+}
+
+export function questToast(text, reward) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<b>Misión cumplida</b><span>${text} · +${fmtInt(reward)} hormigas</span>`;
+  els.toasts.appendChild(el);
+  setTimeout(() => el.remove(), 3700);
+  audio.questDone();
 }
 
 const FEEDBACK = {
@@ -189,14 +202,7 @@ const FEEDBACK = {
   badluck: { text: '¡Resbalón!', cls: 'shake' },
 };
 
-export function onClimbEvent(ev) {
-  let text, cls;
-  if (ev.type === 'grab') {
-    text = `+${fmtH(ev.gain)} m`;
-    cls = 'good';
-  } else if (FEEDBACK[ev.type]) {
-    ({ text, cls } = FEEDBACK[ev.type]);
-  } else return;
+export function flash(text, cls) {
   const el = els.feedback;
   el.textContent = text;
   el.className = '';
@@ -204,15 +210,52 @@ export function onClimbEvent(ev) {
   el.className = `show ${cls}`;
 }
 
-export function update() {
-  const h = climb.visualHeight();
-  els.height.innerHTML = `${fmtH(h)}<span class="unit">m</span>`;
-  els.record.textContent = `récord ${fmtH(state.bestHeight)} m`;
-  els.ants.textContent = fmtInt(state.ants);
-  els.sap.textContent = fmtInt(state.sap);
+export function onClimbEvent(ev) {
+  if (ev.type === 'grab') {
+    flash(`+${fmtH(ev.gain)} m`, 'good');
+  } else if (FEEDBACK[ev.type]) {
+    const f = FEEDBACK[ev.type];
+    flash(f.text, f.cls);
+  }
+}
 
+// cache de lo último escrito: tocar el DOM solo cuando el texto cambia
+const hud = { h: '', rec: '', ants: '', sap: '', bar: -1, quest: '' };
+
+export function update() {
+  const h = fmtH(climb.visualHeight());
+  if (h !== hud.h) {
+    hud.h = h;
+    els.heightN.textContent = h;
+  }
+  const rec = `récord ${fmtH(state.bestHeight)} m`;
+  if (rec !== hud.rec) {
+    hud.rec = rec;
+    els.record.textContent = rec;
+  }
+  const ants = fmtInt(state.ants);
+  if (ants !== hud.ants) {
+    hud.ants = ants;
+    els.ants.textContent = ants;
+  }
+  const sap = fmtInt(state.sap);
+  if (sap !== hud.sap) {
+    hud.sap = sap;
+    els.sap.textContent = sap;
+  }
   const next = nextLockedUnlock();
-  els.sapBar.style.width = next ? `${Math.min(100, (state.sap / next.at) * 100)}%` : '100%';
+  const bar = next ? Math.min(100, Math.round((state.sap / next.at) * 1000) / 10) : 100;
+  if (bar !== hud.bar) {
+    hud.bar = bar;
+    els.sapBar.style.width = `${bar}%`;
+  }
+  if (state.quest) {
+    const quest = `${quests.text()} · ${quests.progressText()}`;
+    if (quest !== hud.quest) {
+      hud.quest = quest;
+      els.questText.textContent = quest;
+    }
+  }
 
   if (shopOpen) refreshShop(false);
 }

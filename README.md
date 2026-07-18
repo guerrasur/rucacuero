@@ -29,6 +29,13 @@ python3 -m http.server 8000
 - Sonido procedural con WebAudio (sin assets): golpe de agarre, resbalón,
   ráfagas de ruido filtrado, carga del salto y campanitas de desbloqueo.
   Se silencia con el botón de abajo a la derecha (persistente).
+- **Eventos raros** (nunca le quitan nada al jugador): un **chucao** se posa
+  en el borde de la rama — tocarlo lo espanta y suelta semillas que dan un
+  bono de hormigas; y **lluvia**, que duplica la savia mientras dura pero
+  vuelve la corteza más resbalosa.
+- **Misiones cortas** rotativas (chip bajo el récord): rachas de agarres,
+  saltos perfectos, metros ganados, compras, agarres con ráfaga o espantar
+  al chucao. Recompensan hormigas y sus objetivos escalan al completarlas.
 
 ## Tres capas de progreso
 

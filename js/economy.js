@@ -106,9 +106,10 @@ export function nextLockedUnlock() {
 }
 
 // Avanza la economía un frame. Devuelve los desbloqueos de savia recién alcanzados.
-export function tick(dt) {
+// sapMul: multiplicador de eventos (lluvia); la savia solo sube, nunca baja.
+export function tick(dt, sapMul = 1) {
   state.ants += antRate() * dt;
-  state.sap += SAP_RATE * dt;
+  state.sap += SAP_RATE * dt * sapMul;
   const fresh = [];
   for (const u of SAP_UNLOCKS) {
     if (state.sap >= u.at && !state.unlocks.includes(u.id)) {

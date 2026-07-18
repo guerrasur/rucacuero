@@ -100,6 +100,30 @@ html, body {
   text-shadow: 0 2px 4px rgba(0, 0, 0, .6);
 }
 
+#quest {
+  margin-top: 7px;
+  display: flex;
+  justify-content: center;
+}
+#quest span {
+  background: rgba(42, 28, 20, .84);
+  border: 2px solid rgba(240, 163, 42, .38);
+  color: var(--hueso);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 13px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  max-width: 78vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#quest span::before {
+  content: '◆ ';
+  color: var(--savia);
+}
+
 .counter {
   position: absolute;
   top: calc(12px + env(safe-area-inset-top));
