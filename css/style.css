@@ -168,6 +168,41 @@ html, body {
   75% { margin-left: -5px; }
 }
 
+/* ---------- cartel de zona ---------- */
+#zone-banner {
+  position: absolute;
+  left: 0; right: 0;
+  top: 26%;
+  text-align: center;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0;
+}
+#zone-banner b {
+  display: block;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 30px;
+  color: var(--hueso);
+  text-shadow: 0 3px 0 var(--tinta), 0 6px 20px rgba(0, 0, 0, .65);
+}
+#zone-banner span {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--savia);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, .7);
+}
+#zone-banner.show { animation: zone-in 3s ease forwards; }
+@keyframes zone-in {
+  0%   { opacity: 0; transform: translateY(16px) scale(.9); }
+  10%  { opacity: 1; transform: translateY(0) scale(1.03); }
+  18%  { transform: scale(1); }
+  82%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+
 /* ---------- hint ---------- */
 #hint {
   position: absolute;
@@ -211,6 +246,34 @@ html, body {
 }
 #shop-btn:active { transform: scale(.92); }
 #shop-btn svg { width: 30px; height: 30px; }
+
+#mute-btn {
+  position: absolute;
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(42, 28, 20, .85);
+  border: 2px solid rgba(242, 232, 206, .25);
+  color: rgba(242, 232, 206, .8);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 4;
+  transition: transform .12s;
+}
+#mute-btn:active { transform: scale(.92); }
+#mute-btn svg { width: 22px; height: 22px; grid-area: 1 / 1; }
+#mute-btn svg[hidden] { display: none; }
+
+#shop-stats {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--savia);
+  margin: -4px 0 8px;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---------- tienda (bottom sheet) ---------- */
 #scrim {

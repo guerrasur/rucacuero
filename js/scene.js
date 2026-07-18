@@ -1,7 +1,7 @@
 // Render canvas de la escena: rama xilográfica, nudos, escalador, hormigas,
 // savia, luciérnagas y el elemento firma — el viento dibujado.
 import { state } from './state.js';
-import { climb, wind, knotHeight, knotHasSap, hash, MAX_JUMP, PERFECT_W } from './climb.js';
+import { climb, wind, knotHeight, knotHasSap, hash, MAX_JUMP, PERFECT_W, ZONES } from './climb.js';
 
 const C = {
   noche: '#131B12',
@@ -18,6 +18,31 @@ const C = {
 const VISIBLE_M = 9; // metros de rama visibles en pantalla
 const CHAR_Y = 0.7; // fracción de pantalla donde vive el personaje
 
+function hexLerp(a, b, t) {
+  const pa = [1, 3, 5].map(i => parseInt(a.slice(i, i + 2), 16));
+  const pb = [1, 3, 5].map(i => parseInt(b.slice(i, i + 2), 16));
+  const m = pa.map((v, i) => Math.round(v + (pb[i] - v) * t));
+  return `rgb(${m[0]},${m[1]},${m[2]})`;
+}
+
+// Verde de la rama según la zona, con transición suave en los 6 m
+// anteriores a cada frontera.
+function zoneVerde(h) {
+  let cur = ZONES[0];
+  let next = null;
+  for (let i = 0; i < ZONES.length; i++) {
+    if (h >= ZONES[i].at) {
+      cur = ZONES[i];
+      next = ZONES[i + 1] || null;
+    }
+  }
+  if (next) {
+    const t = (h - (next.at - 6)) / 6;
+    if (t > 0) return hexLerp(cur.verde, next.verde, Math.min(1, t));
+  }
+  return cur.verde;
+}
+
 export class Scene {
   constructor(canvas) {
     this.canvas = canvas;
@@ -26,6 +51,8 @@ export class Scene {
     this.cameraH = state.height;
     this.shake = 0;
     this.dpr = 1;
+    this.particles = [];
+    this.climberPos = { x: 0, y: 0 };
     this.strokes = this.makeWindStrokes();
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -91,9 +118,12 @@ export class Scene {
     this.drawLeafLayer(0.65, C.nocheSoft, 40);
     this.drawFireflies();
     this.drawBranch();
+    this.drawMilestones();
+    this.drawRecordLine();
     this.drawAnts(view.antRate);
     this.drawChargeOverlays();
     this.drawClimber(h);
+    this.drawParticles(dt);
     this.drawWind(view.unlocks);
     ctx.restore();
 
@@ -166,7 +196,7 @@ export class Scene {
     for (const [x, y] of L) ctx.lineTo(x, y);
     for (let i = R.length - 1; i >= 0; i--) ctx.lineTo(R[i][0], R[i][1]);
     ctx.closePath();
-    ctx.fillStyle = C.verde;
+    ctx.fillStyle = zoneVerde(this.cameraH);
     ctx.fill();
     ctx.lineWidth = 6;
     ctx.strokeStyle = C.tinta;
@@ -291,6 +321,110 @@ export class Scene {
     ctx.stroke();
   }
 
+  // ---------- marcas de altura pintadas en la corteza ----------
+  drawMilestones() {
+    const { ctx } = this;
+    const { top, bot } = this.branchSpan();
+    ctx.font = '13px Chango, Georgia, serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    for (let m = Math.max(10, Math.ceil(bot / 10) * 10); m <= top; m += 10) {
+      const y = this.yOf(m);
+      const x = this.branchX(m) - this.bw * 0.42;
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = C.hueso;
+      ctx.fillText(String(m), x + 12, y);
+      ctx.strokeStyle = C.hueso;
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 8, y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // línea del récord: tu mejor altura pintada en la rama
+  drawRecordLine() {
+    const { ctx } = this;
+    const b = state.bestHeight;
+    if (b < 3) return;
+    const y = this.yOf(b);
+    if (y < -20 || y > this.H + 20) return;
+    const bx = this.branchX(b);
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = C.hueso;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([9, 8]);
+    ctx.beginPath();
+    ctx.moveTo(bx - this.bw * 0.75, y);
+    ctx.lineTo(bx + this.bw * 0.75, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // banderín
+    ctx.globalAlpha = 0.85;
+    const fx = bx + this.bw * 0.75;
+    ctx.beginPath();
+    ctx.moveTo(fx, y);
+    ctx.lineTo(fx, y - 14);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(fx, y - 14);
+    ctx.lineTo(fx + 13, y - 10);
+    ctx.lineTo(fx, y - 6);
+    ctx.closePath();
+    ctx.fillStyle = C.savia;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- partículas ----------
+  burst(kind) {
+    const { x, y } = this.climberPos;
+    const defs = {
+      bark: { n: 7, colors: [C.musgo, C.tinta], up: -70, spread: 130, size: 3.5 },
+      spark: { n: 9, colors: [C.savia, C.hueso], up: -110, spread: 160, size: 2.6 },
+      dust: { n: 8, colors: [C.hueso], up: -30, spread: 100, size: 2.8 },
+    };
+    const d = defs[kind];
+    if (!d) return;
+    for (let i = 0; i < d.n; i++) {
+      this.particles.push({
+        x: x + (Math.random() - 0.5) * 24,
+        y: y + (Math.random() - 0.5) * 20,
+        vx: (Math.random() - 0.5) * d.spread,
+        vy: d.up * (0.4 + Math.random()),
+        life: 0.5 + Math.random() * 0.4,
+        max: 0.9,
+        color: d.colors[i % d.colors.length],
+        size: d.size * (0.6 + Math.random() * 0.7),
+        dust: kind === 'dust',
+      });
+    }
+  }
+
+  drawParticles(dt) {
+    const { ctx } = this;
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.life -= dt;
+      if (p.life <= 0) {
+        this.particles.splice(i, 1);
+        continue;
+      }
+      p.vy += 260 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      ctx.globalAlpha = Math.min(1, p.life / p.max) * (p.dust ? 0.45 : 0.9);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // ---------- hormigas ----------
   drawAnts(antRate) {
     const { ctx } = this;
@@ -401,6 +535,8 @@ export class Scene {
     const { ctx } = this;
     const x = this.branchX(h) - this.bw * 0.02;
     const y = this.yOf(h);
+    this.climberPos.x = x;
+    this.climberPos.y = y;
     const pose = this.poseFor();
     ctx.save();
     ctx.translate(x, y);

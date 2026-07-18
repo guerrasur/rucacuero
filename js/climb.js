@@ -24,12 +24,29 @@ export function hash(i) {
   return frac(Math.sin(i * 127.1 + 311.7) * 43758.5453);
 }
 
+// Zonas de la rama: a medida que subís cambia la corteza, la distancia entre
+// nudos, cuánta savia rezuma y qué tan seguido sopla el viento.
+export const ZONES = [
+  { at: 0,   name: 'Corteza baja',   verde: '#7FA636', gapMul: 1.0,  sap: 0.45, sweetMul: 1,    calm: [6, 11],   gust: [2.0, 2.8] },
+  { at: 30,  name: 'Corteza pelada', verde: '#95A03C', gapMul: 1.12, sap: 0.18, sweetMul: 1,    calm: [5, 9],    gust: [2.0, 2.8] },
+  { at: 70,  name: 'Copa ventosa',   verde: '#699F55', gapMul: 1.04, sap: 0.35, sweetMul: 0.95, calm: [3.5, 6.5], gust: [2.4, 3.4] },
+  { at: 120, name: 'Rama joven',     verde: '#8AB33D', gapMul: 0.94, sap: 0.55, sweetMul: 0.95, calm: [4.5, 8],  gust: [2.0, 2.8] },
+  { at: 180, name: 'Cielo de hojas', verde: '#7BAA69', gapMul: 1.15, sap: 0.3,  sweetMul: 0.9,  calm: [3, 5.5],  gust: [2.6, 3.6] },
+];
+
+export function zoneAt(h) {
+  let z = ZONES[0];
+  for (const zz of ZONES) if (h >= zz.at) z = zz;
+  return z;
+}
+
 // Los nudos son deterministas: la rama es la misma en cada sesión.
 const knots = [0];
 export function knotHeight(i) {
   while (knots.length <= i) {
     const k = knots.length;
-    knots.push(knots[k - 1] + 2.2 + hash(k) * 2.3);
+    const z = zoneAt(knots[k - 1]);
+    knots.push(knots[k - 1] + (2.2 + hash(k) * 2.3) * z.gapMul);
   }
   return knots[i];
 }
@@ -39,7 +56,8 @@ export function nextKnotIndex(h) {
   return i;
 }
 export function knotHasSap(i) {
-  return hash(i * 3.7 + 11) > 0.55;
+  if (i === 0) return false;
+  return hash(i * 3.7 + 11) < zoneAt(knotHeight(i)).sap;
 }
 
 // ---------- viento ----------
@@ -53,14 +71,16 @@ export const wind = {
       if (this.timer <= 1.5) this.phase = 'warn';
     } else if (this.phase === 'warn') {
       if (this.timer <= 0) {
+        const z = zoneAt(state.height);
         this.phase = 'gust';
-        this.dur = 2.0 + Math.random() * 0.8;
+        this.dur = z.gust[0] + Math.random() * (z.gust[1] - z.gust[0]);
         this.timer = this.dur;
       }
     } else if (this.phase === 'gust') {
       if (this.timer <= 0) {
+        const z = zoneAt(state.height);
         this.phase = 'calm';
-        this.timer = 6 + Math.random() * 5;
+        this.timer = z.calm[0] + Math.random() * (z.calm[1] - z.calm[0]);
       }
     }
   },
@@ -96,6 +116,7 @@ export const climb = {
   chainSafe: false,
   jumpsSinceResin: RESIN_EVERY,
   chargeAlpha: 0, // para desvanecer overlays de carga en el render
+  lastZone: null,
   events: [],
 
   emit(type, data) {
@@ -108,7 +129,7 @@ export const climb = {
   },
 
   sweetW() {
-    return wind.windy() ? SWEET_WIND : SWEET_BASE;
+    return (wind.windy() ? SWEET_WIND : SWEET_BASE) * zoneAt(state.height).sweetMul;
   },
   landingH() {
     return state.height + this.power * MAX_JUMP;
@@ -169,6 +190,9 @@ export const climb = {
     const gained = this.leapTo - state.height;
     state.height = this.leapTo;
     if (state.height > state.bestHeight) state.bestHeight = state.height;
+    const z = zoneAt(state.height);
+    if (this.lastZone && z !== this.lastZone) this.emit('zone', { zone: z });
+    this.lastZone = z;
     if (this.chainSafe) {
       this.emit('chain', { gain: gained });
       this.phase = 'idle';
@@ -197,6 +221,7 @@ export const climb = {
   },
 
   update(dt) {
+    if (!this.lastZone) this.lastZone = zoneAt(state.height);
     if (this.phase === 'charging') {
       this.power = Math.min(1, this.power + CHARGE_SPEED * dt);
     } else if (this.phase === 'leaping') {
@@ -206,6 +231,8 @@ export const climb = {
       this.t += dt / SLIP_TIME;
       if (this.t >= 1) {
         state.height = this.slipTo;
+        // si el resbalón te bajó de zona, el cartel vuelve a salir al re-entrar
+        this.lastZone = zoneAt(state.height);
         this.phase = 'idle';
       }
     }

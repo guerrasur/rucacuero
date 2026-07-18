@@ -22,6 +22,13 @@ python3 -m http.server 8000
   reduce comprando *Nudos reforzados*.
 - Cuando sopla el **viento** (los trazos que cruzan la pantalla), la zona
   segura se angosta.
+- La rama cambia con la altura: cada **zona** (Corteza baja, Corteza pelada,
+  Copa ventosa, Rama joven, Cielo de hojas) tiene su propio verde, distancia
+  entre nudos, savia y frecuencia de ráfagas. La rama lleva marcas pintadas
+  cada 10 m y un banderín ámbar en tu récord.
+- Sonido procedural con WebAudio (sin assets): golpe de agarre, resbalón,
+  ráfagas de ruido filtrado, carga del salto y campanitas de desbloqueo.
+  Se silencia con el botón de abajo a la derecha (persistente).
 
 ## Tres capas de progreso
 

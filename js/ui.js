@@ -9,7 +9,9 @@ import {
   buy,
   nextLockedUnlock,
 } from './economy.js';
-import { climb } from './climb.js';
+import { climb, wind } from './climb.js';
+import { SAP_RATE, antRate as antRateFn, slipChance } from './economy.js';
+import * as audio from './audio.js';
 
 const $ = id => document.getElementById(id);
 const ANT_SVG =
@@ -38,11 +40,30 @@ export function init() {
     upgradeList: $('upgrade-list'),
     unlockList: $('unlock-list'),
     toasts: $('toasts'),
+    shopStats: $('shop-stats'),
+    zoneBanner: $('zone-banner'),
+    muteBtn: $('mute-btn'),
+    iconSound: $('icon-sound'),
+    iconMuted: $('icon-muted'),
   };
 
   els.shopBtn.addEventListener('click', () => toggleShop(!shopOpen));
   els.scrim.addEventListener('click', () => toggleShop(false));
+  els.muteBtn.addEventListener('click', () => {
+    audio.ensure();
+    audio.setMuted(!audio.isMuted());
+    syncMuteIcon();
+  });
+  syncMuteIcon();
   buildShop();
+}
+
+function syncMuteIcon() {
+  const m = audio.isMuted();
+  // los SVG no tienen la propiedad .hidden: se maneja el atributo
+  els.iconSound.toggleAttribute('hidden', m);
+  els.iconMuted.toggleAttribute('hidden', !m);
+  els.muteBtn.setAttribute('aria-label', m ? 'Activar sonido' : 'Silenciar sonido');
 }
 
 function toggleShop(open) {
@@ -74,7 +95,11 @@ function buildShop() {
       `<div class="card-info"><h3>${def.name}<span class="lvl"></span></h3><p>${def.desc}</p></div>` +
       `<button class="buy">${ANT_SVG}<span class="cost"></span></button>`;
     card.querySelector('.buy').addEventListener('click', () => {
-      if (buy(def)) refreshShop(true);
+      if (buy(def)) {
+        audio.ensure();
+        audio.buy();
+        refreshShop(true);
+      }
     });
     els.upgradeList.appendChild(card);
   }
@@ -126,6 +151,11 @@ function refreshShop(force) {
     row.classList.toggle('locked', !done);
     row.querySelector('.check').textContent = done ? '✓' : '';
   }
+
+  const rate = antRateFn().toLocaleString('es-AR', { maximumFractionDigits: 2 });
+  const slipPct = (slipChance(false) * 100).toLocaleString('es-AR', { maximumFractionDigits: 1 });
+  const sapRate = SAP_RATE.toLocaleString('es-AR', { minimumFractionDigits: 1 });
+  els.shopStats.textContent = `${rate} hormigas/s · ${sapRate} savia/s · resbalón ${slipPct}%`;
 }
 
 export function hideHint() {
@@ -138,7 +168,16 @@ export function toast(unlockDef) {
   el.innerHTML = `<b>Savia · ${unlockDef.name}</b><span>${unlockDef.desc}</span>`;
   els.toasts.appendChild(el);
   setTimeout(() => el.remove(), 3700);
+  audio.unlockChime();
   refreshShop(true);
+}
+
+export function showZone(zone) {
+  els.zoneBanner.querySelector('b').textContent = zone.name;
+  els.zoneBanner.querySelector('span').textContent = `${zone.at} m`;
+  els.zoneBanner.className = '';
+  void els.zoneBanner.offsetWidth;
+  els.zoneBanner.className = 'show';
 }
 
 const FEEDBACK = {
