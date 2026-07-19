@@ -115,10 +115,17 @@ html, body {
   text-shadow: 0 2px 4px rgba(0, 0, 0, .6);
 }
 
+/* chip de misión: abajo, entre los botones de tienda y mute — la zona del
+   objetivo siempre está arriba del escalador, acá no tapa nada */
 #quest {
-  margin-top: 7px;
+  position: absolute;
+  left: 84px;
+  right: 72px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
+  z-index: 3;
+  pointer-events: none; /* el tap pasa al canvas: sigue siendo zona de carga */
 }
 #quest span {
   background: rgba(42, 28, 20, .84);
@@ -126,13 +133,12 @@ html, body {
   color: var(--hueso);
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
   padding: 5px 13px;
   border-radius: 999px;
   font-variant-numeric: tabular-nums;
-  max-width: 78vw;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 100%;
 }
 #quest span::before {
   content: '◆ ';
@@ -174,6 +180,12 @@ html, body {
   background: var(--savia);
   transition: width .4s linear;
 }
+
+/* mientras se carga el salto, la UI se corre para no competir con la puntería */
+#hud, #toasts, #quest { transition: opacity .3s; }
+body.charging #hud,
+body.charging #toasts,
+body.charging #quest { opacity: .18; }
 
 /* ---------- feedback flotante ---------- */
 #feedback {
