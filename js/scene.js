@@ -530,12 +530,11 @@ export class Scene {
     ctx.globalAlpha = 0.16 * a;
     ctx.fillStyle = C.savia;
     ctx.fillRect(bx - this.bw * 0.62, y1, this.bw * 1.24, y2 - y1);
-    if (state.unlocks.includes('saltolargo')) {
-      const py1 = this.yOf(kh + PERFECT_W);
-      const py2 = this.yOf(kh - PERFECT_W);
-      ctx.globalAlpha = 0.3 * a;
-      ctx.fillRect(bx - this.bw * 0.62, py1, this.bw * 1.24, py2 - py1);
-    }
+    // micro-zona perfecta: siempre visible — soltar ahí nunca falla
+    const py1 = this.yOf(kh + PERFECT_W);
+    const py2 = this.yOf(kh - PERFECT_W);
+    ctx.globalAlpha = 0.3 * a;
+    ctx.fillRect(bx - this.bw * 0.62, py1, this.bw * 1.24, py2 - py1);
     ctx.globalAlpha = 0.55 * a;
     ctx.strokeStyle = C.savia;
     ctx.lineWidth = 1.5;
