@@ -36,52 +36,81 @@ Tipos: **Chango** (display) + **Bricolage Grotesque** (texto), self-hosteadas
 en `fonts/` (no volver a CDN). Elemento firma: **el viento dibujado** (trazos
 hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
 
-## Mapa de módulos (todos en `js/`, ~1200 líneas en total)
+## Mapa de módulos (todos en `js/`, ~2600 líneas en total)
 
 - `state.js` — objeto `state` + load/save/autosave. Schema del save:
-  `{ v:1, ants, sap, height, bestHeight, upgrades:{feromonas,reina,nudos,mielada},
-  unlocks:[ids], quest:{id,target,progress}|null, questsDone }`.
+  `{ v:1, ants, sap, height, bestHeight,
+  upgrades:{feromonas,reina,nudos,mielada,ofrenda}, unlocks:[ids],
+  quest:{id,target,progress}|null, questsDone,
+  life:{metros,perfectos,chucaos,lluvias,gastadas,enjambres}, logros:[ids] }`.
+  Migración aditiva sin bump de versión: campos faltantes → defaults.
   Clave aparte: `rucacuero_muted` ('1'/'0').
-- `economy.js` — `UPGRADES`, `SAP_UNLOCKS` (umbrales 50/150/400/900),
+- `economy.js` — `UPGRADES` (5; `ofrenda` es repetible sin tope, +5%/nivel,
+  costo ×3, `requiresAllMaxed`), `SAP_UNLOCKS` (umbrales 50/150/400/900/2000),
   `antRate()`, `SAP_RATE=0.2`, `slipChance(windy)` (8% base ×0.82^nudos,
   piso 1%), `tick(dt, sapMul)`, `buy()`.
 - `climb.js` — el corazón: nudos deterministas (`knotHeight(i)` memoizado,
-  `knotIndexAbove(h)` búsqueda binaria), `ZONES` (5 zonas cada ~30-180 m que
-  cambian verde/gapMul/savia/viento), objeto `wind` (calm→warn→gust) y objeto
-  `climb` (máquina de estados idle→charging→leaping→slipping). Constantes
-  clave: `MAX_JUMP=6` m, `CHARGE_SPEED=0.55` pot/s, zona dulce ±0.55 m
-  (±0.30 con ráfaga), `PERFECT_W=0.14`. Pérdidas: corto −1.2, pasado −3.0,
+  `knotIndexAbove(h)` búsqueda binaria), `ZONES` (7 zonas: 0/30/70/120/180/
+  260/360 que cambian verde/gapMul/savia/viento), objeto `wind`
+  (calm→warn→gust) y objeto `climb` (máquina de estados
+  idle→charging→leaping→slipping). Constantes clave: `MAX_JUMP=6` m,
+  `CHARGE_SPEED=0.55` pot/s, zona dulce ±0.55 m (±0.30 con ráfaga, ±0.38 con
+  unlock `brisa`), `PERFECT_W=0.14`. Pérdidas: corto −1.2, pasado −3.0,
   mala suerte −2.2 (clamp a 0). `climb.mods` = hooks inyectados por main
-  (lluvia: slipBonus/sweetMul). Eventos via `emit()`/`takeEvents()`.
-- `events.js` — `branchEvents`: lluvia (savia ×2, resbalón +4%, dulce ×0.92,
-  ~20 s) y chucao (12 s posado; tocarlo = bono de hormigas). Cooldown 40-80 s.
-  Si `state.quest.id==='bird'`, el próximo spawn garantiza pájaro.
+  (lluvia/niebla: slipBonus/sweetMul). Eventos via `emit()`/`takeEvents()`.
+- `events.js` — `branchEvents`, un evento a la vez, cooldown 40-80 s, spawn
+  por tabla de pesos: lluvia 0.30 (savia ×2, resbalón +4%, dulce ×0.92,
+  ~20 s), chucao 0.25 (12 s posado; tocarlo = bono de hormigas), niebla 0.25
+  (solo con height>12: savia ×1.5, dulce ×0.88, SIN resbalón extra, ~20 s) y
+  enjambre de luciérnagas 0.20 (10 s; tocarlo = bono de hormigas via
+  `tapSwarm()`). Si `state.quest.id==='bird'`, el próximo spawn garantiza
+  pájaro.
 - `quests.js` — pool de 6 misiones rotativas (una activa), progreso en
   `state.quest`, recompensa en hormigas que escala con `questsDone`.
   `note(kind, amount, ctx)` es el único punto de entrada.
+- `logros.js` — 12 logros permanentes (`LOGROS`): métricas acumulativas en
+  `state.life` (via `bump(metric, amount)`, único entry point) + derivadas
+  récord/misiones (via `checkDerived()`, llamada por main solo cuando hubo
+  eventos). Recompensa en hormigas, solo suma. UI: sección en la sheet.
 - `scene.js` — render canvas (contexto `{alpha:false}`). Cámara sigue
   `climb.visualHeight()`; `CHAR_Y=0.7`, `VISIBLE_M=9`. Dibuja: follaje
   parallax (sprites pre-renderizados), luciérnagas, rama (dos verdes +
   contorno, verde por zona con `zoneVerde()`), nudos (+anillo objetivo,
   savia con glow sprite), marcas cada 10 m, banderín de récord, hormigas,
   overlays de carga (banda dulce + chevron + medidor), escalador (paths por
-  poses), chucao, partículas, viento (Path2D), lluvia, viñeta.
-  `scene.birdPos` lo usa main para el hit-test del tap.
+  poses), chucao, enjambre (glow + puntitos savia), partículas, viento
+  (Path2D), niebla (bandas de `fogSprite` + velo), lluvia, viñeta.
+  `scene.birdPos` y `scene.swarmPos` los usa main para el hit-test del tap.
 - `ui.js` — HUD (escrituras DOM **solo cuando cambia el texto** — mantener),
-  tienda bottom-sheet, toasts, `showBanner()`, `flash()`, chip de misión,
-  mute (los SVG no tienen `.hidden`: usar `toggleAttribute`).
+  tienda bottom-sheet (mejoras + savia + logros), toasts, `showBanner()`,
+  `flash()`, chip de misión, mute (los SVG no tienen `.hidden`: usar
+  `toggleAttribute`).
 - `audio.js` — todo procedural con WebAudio (sin assets). `ensure()` debe
-  llamarse desde un gesto. Loops con estado: carga (osc) y lluvia (noise).
-- `main.js` — wiring y loop. Traduce eventos de climb/branchEvents/quests a
-  audio + partículas + UI + misiones. Expone `window.__ruca =
-  { state, climb, wind, economy, events, quests, scene }` para debug/tests.
+  llamarse desde un gesto. Loops con estado: carga (osc), lluvia (noise) y
+  ambiente (pad de viento lowpass 180 Hz + grillos; `ambientUpdate(dt, ctx)`
+  por frame desde main — se calla con lluvia, crece con niebla, cede en
+  ráfaga; cuelga de master, el mute lo silencia solo).
+- `main.js` — wiring y loop. Traduce eventos de climb/branchEvents/quests/
+  logros a audio + partículas + UI. Registra el service worker (NO en
+  localhost salvo `?sw=1`). Expone `window.__ruca =
+  { state, climb, wind, economy, events, quests, logros, scene }`.
 
 ## Performance (ya optimizado — no regresar)
 
 Canvas opaco; gradientes/blobs SOLO en sprites pre-renderizados (constructor
 de Scene), jamás crear `createRadialGradient` dentro del frame; nudos visibles
 por búsqueda binaria; arrays de `setLineDash` como constantes; DPR cap 2.
-Medido: ~51 FPS en headless por software; 60 en GPU real.
+Medido: ~51-60 FPS en headless por software (incluso con niebla+enjambre); 60
+en GPU real.
+
+## PWA
+
+`manifest.json` + `sw.js` (cache-first, precache cerrado) + `icons/`.
+**REGLA: cualquier cambio en un asset requiere bumpear `CACHE`
+(`rucacuero-vN`) en `sw.js`** o los usuarios instalados no ven la novedad.
+En localhost el SW no se registra salvo `?sw=1` — desarrollo y tests siempre
+ven la versión fresca. Los PNG de `icons/` se generaron una vez desde
+`icons/icon.svg` con Playwright (screenshot); no hay build.
 
 ## Cómo verificar (Playwright, ya instalado en el scratchpad de sesiones previas)
 
@@ -94,7 +123,9 @@ Medido: ~51 FPS en headless por software; 60 en GPU real.
     primer salto (esperar ~1.5 s tras cargar).
   - Forzar lluvia: `__ruca.events.rain = {t:2, dur:60}`. Forzar chucao:
     `__ruca.events.bird = {h: state.height+3, side:1, t:0, dur:12, phase:'perch', flyT:0}`
-    y tocar en `__ruca.scene.birdPos`.
+    y tocar en `__ruca.scene.birdPos`. Forzar niebla: `__ruca.events.fog =
+    {t:2, dur:60}`. Forzar enjambre: `__ruca.events.swarm =
+    {h: state.height+3, side:1, t:2, dur:60}` y tocar en `__ruca.scene.swarmPos`.
   - **Trampa de persistencia**: inyectar localStorage y luego `reload()` NO
     funciona — `pagehide` guarda el estado en memoria encima. Inyectar con
     `context.addInitScript()` antes de cargar la página.
@@ -103,11 +134,12 @@ Medido: ~51 FPS en headless por software; 60 en GPU real.
 
 ## Git
 
-Branch de trabajo: `claude/ruca-cuero-game-prototype-so7ihd` → PR #2 abierto
-contra `main` (se actualiza al pushear). Commits en español, descriptivos.
+Branch de trabajo actual: `claude/game-improvements-hmaebk` (los branches de
+iteraciones anteriores ya se mergearon a `main`). Commits en español,
+descriptivos. No abrir PR salvo pedido explícito.
 
 ## Ideas pendientes (aprobadas a grandes rasgos, no comprometidas)
 
-PWA (manifest + service worker) para instalar en el celular; más eventos
-(siempre sin quitarle nada al jugador); logros de largo plazo además de las
-misiones rotativas; sonido ambiente del monte de noche.
+Más eventos de rama (siempre sin quitarle nada al jugador); más logros o un
+prestige suave para el endgame profundo; modos de accesibilidad (reducción de
+movimiento); compartir el récord como imagen.
