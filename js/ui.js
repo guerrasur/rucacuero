@@ -31,6 +31,7 @@ const fmtH = h =>
 export function init() {
   els = {
     heightN: $('height-n'),
+    mult: $('mult'),
     record: $('record'),
     questText: $('quest-text'),
     ants: $('ants-n'),
@@ -254,12 +255,30 @@ export function flash(text, cls) {
   el.className = `show ${cls}`;
 }
 
+// badge de racha de perfectos: se agranda y retrae en cada perfecto seguido
+function showMult(mult) {
+  els.mult.textContent = `×${mult.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
+  els.mult.hidden = false;
+  els.mult.classList.remove('pop');
+  void els.mult.offsetWidth; // reinicia la animación aunque el texto no cambie
+  els.mult.classList.add('pop');
+}
+
+function hideMult() {
+  els.mult.hidden = true;
+}
+
 export function onClimbEvent(ev) {
   if (ev.type === 'grab') {
     flash(`+${fmtH(ev.gain)} m`, 'good');
+    hideMult(); // agarre limpio pero no perfecto: la racha se corta
+  } else if (ev.type === 'perfect') {
+    flash(ev.mult > 1 ? `¡Perfecto! ×${ev.mult.toLocaleString('es-AR', { minimumFractionDigits: 1 })}` : '¡Perfecto!', 'good');
+    if (ev.mult > 1) showMult(ev.mult);
   } else if (FEEDBACK[ev.type]) {
     const f = FEEDBACK[ev.type];
     flash(f.text, f.cls);
+    if (ev.type === 'short' || ev.type === 'over' || ev.type === 'badluck') hideMult();
   }
 }
 

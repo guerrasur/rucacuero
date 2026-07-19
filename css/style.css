@@ -91,6 +91,21 @@ html, body {
   text-shadow: 0 3px 0 var(--tinta);
 }
 
+/* multiplicador de racha de perfectos */
+#mult {
+  font-family: var(--display);
+  font-size: 21px;
+  line-height: 1.1;
+  color: var(--savia);
+  text-shadow: 0 3px 0 var(--tinta), 0 6px 18px rgba(0, 0, 0, .5);
+}
+#mult.pop { animation: mult-pop .45s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes mult-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+
 #record {
   margin-top: 2px;
   font-size: 13px;

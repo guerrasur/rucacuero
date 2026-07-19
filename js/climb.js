@@ -8,6 +8,10 @@ export const MAX_JUMP = 6; // metros de salto a carga máxima
 export const CHARGE_SPEED = 0.55; // potencia por segundo (carga completa ~1,8 s)
 export const PERFECT_W = 0.14; // metros: micro-zona de soltada perfecta
 
+// Racha de perfectos: cada soltada perfecta seguida sube el multiplicador de
+// metros ganados. Cualquier soltada no perfecta (aunque agarre) la corta.
+export const STREAK_MULTS = [1, 1.1, 1.2, 1.3, 1.5, 1.7, 2];
+
 const SWEET_BASE = 0.55; // semiancho de la zona dulce en metros
 const SWEET_WIND = 0.3; // semiancho durante ráfaga
 const LOSS_SHORT = 1.2;
@@ -127,6 +131,8 @@ export const climb = {
   slipTo: 0,
   result: null, // 'grab' | 'short' | 'over'
   chainSafe: false,
+  perfectStreak: 0,
+  streakMult: 1,
   jumpsSinceResin: RESIN_EVERY,
   chargeAlpha: 0, // para desvanecer overlays de carga en el render
   lastZone: null,
@@ -177,17 +183,34 @@ export const climb = {
       this.result = 'grab';
       this.leapTo = kH;
       this.perfect = Math.abs(land - kH) <= PERFECT_W;
+      // racha de perfectos: sube el multiplicador y regala impulso extra
+      // (solo metros de más — jamás resta). El perfecto es infalible, así
+      // que se resuelve acá y el vuelo anima suave hasta la altura final.
+      if (this.perfect) {
+        this.perfectStreak += 1;
+        this.streakMult = STREAK_MULTS[Math.min(this.perfectStreak, STREAK_MULTS.length - 1)];
+        this.leapTo += (kH - this.jumpStart) * (this.streakMult - 1);
+      } else {
+        this.breakStreak();
+      }
     }
     this.phase = 'leaping';
   },
 
+  breakStreak() {
+    this.perfectStreak = 0;
+    this.streakMult = 1;
+  },
+
   arrive() {
     if (this.result === 'short') {
+      this.breakStreak();
       this.startSlip(this.leapTo, Math.max(0, this.jumpStart - LOSS_SHORT));
       this.emit('short');
       return;
     }
     if (this.result === 'over') {
+      this.breakStreak();
       this.startSlip(this.leapTo, Math.max(0, this.jumpStart - LOSS_OVER));
       this.emit('over');
       return;
@@ -201,6 +224,7 @@ export const climb = {
         this.jumpsSinceResin = 0;
         this.emit('resin');
       } else {
+        this.breakStreak();
         this.startSlip(this.leapTo, Math.max(0, this.jumpStart - LOSS_LUCK));
         this.emit('badluck');
         return;
@@ -219,7 +243,7 @@ export const climb = {
     }
     if (this.perfect && state.unlocks.includes('saltolargo')) {
       // salto largo: encadena el siguiente nudo sin tirada de mala suerte
-      this.emit('perfect');
+      this.emit('perfect', { mult: this.streakMult, streak: this.perfectStreak });
       this.jumpStart = state.height;
       this.targetKnot = nextKnotIndex(state.height);
       this.leapTo = knotHeight(this.targetKnot);
@@ -228,7 +252,11 @@ export const climb = {
       this.chainSafe = true;
       return; // sigue en 'leaping'
     }
-    this.emit(this.perfect ? 'perfect' : 'grab', { gain: gained });
+    if (this.perfect) {
+      this.emit('perfect', { gain: gained, mult: this.streakMult, streak: this.perfectStreak });
+    } else {
+      this.emit('grab', { gain: gained });
+    }
     this.phase = 'idle';
   },
 
