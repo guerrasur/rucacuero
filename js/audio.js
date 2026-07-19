@@ -139,6 +139,11 @@ export function gust(dur = 2.2) {
   src.stop(t + dur + 0.1);
 }
 
+// Destello del enjambre de luciérnagas: arpegio corto y brillante.
+export function shimmer() {
+  [880, 1175, 1568].forEach((f, i) => setTimeout(() => blip(f, 'triangle', 0.12, 0.18), i * 70));
+}
+
 // Chirrido corto del chucao.
 export function chirp() {
   blip(1300, 'sine', 0.14, 0.08, 1750);

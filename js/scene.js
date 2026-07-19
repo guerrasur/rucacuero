@@ -62,8 +62,10 @@ export class Scene {
     this.particles = [];
     this.climberPos = { x: 0, y: 0 };
     this.birdPos = null;
+    this.swarmPos = null;
     this.strokes = this.makeWindStrokes();
     this.glowSprite = this.makeGlowSprite();
+    this.fogSprite = this.makeFogSprite();
     this.leafDeep = [this.makeLeafSprite(C.nocheDeep, false), this.makeLeafSprite(C.nocheDeep, true)];
     this.leafSoft = [this.makeLeafSprite(C.nocheSoft, false), this.makeLeafSprite(C.nocheSoft, true)];
     this.resize();
@@ -80,6 +82,25 @@ export class Scene {
     rg.addColorStop(1, 'rgba(240,163,42,0)');
     g.fillStyle = rg;
     g.fillRect(0, 0, 48, 48);
+    return c;
+  }
+
+  // banco de niebla: blobs suaves pre-renderizados (jamás gradientes por frame)
+  makeFogSprite() {
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 128;
+    const g = c.getContext('2d');
+    const blobs = [
+      [60, 70, 55], [130, 55, 65], [200, 72, 50], [95, 85, 40],
+    ];
+    for (const [x, y, r] of blobs) {
+      const rg = g.createRadialGradient(x, y, 1, x, y, r);
+      rg.addColorStop(0, 'rgba(242,232,206,0.10)');
+      rg.addColorStop(1, 'rgba(242,232,206,0)');
+      g.fillStyle = rg;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
     return c;
   }
 
@@ -165,8 +186,10 @@ export class Scene {
     this.drawChargeOverlays();
     this.drawClimber(h);
     this.drawBird();
+    this.drawSwarm();
     this.drawParticles(dt);
     this.drawWind(view.unlocks);
+    this.drawFog();
     this.drawRain();
     ctx.restore();
 
@@ -761,6 +784,61 @@ export class Scene {
       ctx.stroke();
     }
     ctx.restore();
+  }
+
+  // ---------- enjambre de luciérnagas (evento) ----------
+  drawSwarm() {
+    const s = branchEvents.swarm;
+    if (!s) {
+      this.swarmPos = null;
+      return;
+    }
+    const { ctx } = this;
+    // entrada/salida suave con la misma envolvente que lluvia/niebla
+    const env = Math.max(0, Math.min(1, s.t / 1, (s.dur - s.t) / 1));
+    const x = this.branchX(s.h) + s.side * (this.bw / 2 + 34) + Math.sin(this.t * 0.7) * 6;
+    const y = this.yOf(s.h) + Math.sin(this.t * 1.1) * 5;
+    this.swarmPos = { x, y, r: 46, active: true };
+
+    ctx.globalAlpha = 0.8 * env;
+    ctx.drawImage(this.glowSprite, x - 46, y - 46, 92, 92);
+    ctx.fillStyle = C.savia;
+    for (let i = 0; i < 12; i++) {
+      const a1 = this.t * (0.9 + hash(i) * 0.8) + i * 2.4;
+      const a2 = this.t * (0.5 + hash(i + 3) * 0.6) + i * 1.1;
+      const px = x + Math.cos(a1) * (10 + hash(i * 2.1) * 22);
+      const py = y + Math.sin(a2) * (8 + hash(i * 4.3) * 18);
+      const tw = 0.35 + 0.6 * Math.sin(this.t * 2.2 + i * 2.9);
+      if (tw <= 0.05) continue;
+      ctx.globalAlpha = tw * env;
+      ctx.beginPath();
+      ctx.arc(px, py, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- niebla (evento) ----------
+  drawFog() {
+    const env = branchEvents.fogEnv();
+    if (env <= 0) return;
+    const { ctx } = this;
+    // tres bandas del sprite derivando a velocidades distintas
+    const sw = this.W * 1.5;
+    const sh = sw * 0.5;
+    for (let i = 0; i < 3; i++) {
+      const speed = 8 + i * 5;
+      // recorre de borde derecho a borde izquierdo, siempre fuera de vista al reciclar
+      const x = this.W - ((this.t * speed + i * (this.W + sw) * 0.37) % (this.W + sw));
+      const y = this.H * (0.18 + i * 0.28) - sh / 2;
+      ctx.globalAlpha = 0.55 * env;
+      ctx.drawImage(this.fogSprite, x, y, sw, sh);
+    }
+    // velo parejo: el monte se lechosa apenas
+    ctx.globalAlpha = 0.12 * env;
+    ctx.fillStyle = C.nocheSoft;
+    ctx.fillRect(0, 0, this.W, this.H);
+    ctx.globalAlpha = 1;
   }
 
   // ---------- lluvia (evento) ----------

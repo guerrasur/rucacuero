@@ -34,6 +34,11 @@ canvas.addEventListener('pointerdown', e => {
     branchEvents.scareBird();
     return;
   }
+  const sp = scene.swarmPos;
+  if (sp && sp.active && Math.hypot(e.clientX - sp.x, e.clientY - sp.y) < sp.r) {
+    branchEvents.tapSwarm();
+    return;
+  }
   climb.press();
 });
 window.addEventListener('pointerup', () => climb.release());
@@ -131,6 +136,21 @@ function frame(now) {
       case 'bird-spawn':
         audio.chirp();
         break;
+      case 'fog-start':
+        ui.showBanner('Niebla', 'savia ×1,5 · zona dulce angosta');
+        break;
+      case 'swarm-spawn':
+        audio.shimmer();
+        break;
+      case 'swarm-tapped': {
+        const bonus = Math.max(15, Math.round(economy.antRate() * 30));
+        state.ants += bonus;
+        ui.flash(`+${bonus.toLocaleString('es-AR')} hormigas`, 'good');
+        if (scene.swarmPos) scene.burst('spark', scene.swarmPos.x, scene.swarmPos.y);
+        audio.shimmer();
+        logros.bump('enjambres');
+        break;
+      }
       case 'bird-scared': {
         const bonus = Math.max(12, Math.round(economy.antRate() * 25));
         state.ants += bonus;
