@@ -7,6 +7,7 @@ import * as ui from './ui.js';
 import * as audio from './audio.js';
 import { branchEvents } from './events.js';
 import * as quests from './quests.js';
+import * as logros from './logros.js';
 
 load();
 initAutosave();
@@ -66,7 +67,8 @@ function frame(now) {
   if (climb.phase === 'charging') audio.chargeUpdate(climb.power);
   else audio.chargeEnd();
 
-  for (const ev of climb.takeEvents()) {
+  const climbEvents = climb.takeEvents();
+  for (const ev of climbEvents) {
     ui.onClimbEvent(ev);
     switch (ev.type) {
       case 'grab':
@@ -74,14 +76,21 @@ function frame(now) {
         scene.burst('bark');
         quests.note('grab', 1, { windy: wind.windy() });
         quests.note('meters', ev.gain);
+        logros.bump('metros', ev.gain);
         break;
       case 'perfect':
       case 'chain':
         audio.perfect();
         scene.burst('spark');
         quests.note('grab', 1, { windy: wind.windy() });
-        if (ev.type === 'perfect') quests.note('perfect');
-        if (ev.gain) quests.note('meters', ev.gain);
+        if (ev.type === 'perfect') {
+          quests.note('perfect');
+          logros.bump('perfectos');
+        }
+        if (ev.gain) {
+          quests.note('meters', ev.gain);
+          logros.bump('metros', ev.gain);
+        }
         break;
       case 'resin':
         audio.resin();
@@ -106,6 +115,8 @@ function frame(now) {
         break;
     }
   }
+  // récord y misiones son métricas derivadas: se chequean solo cuando hubo eventos
+  if (climbEvents.length) logros.checkDerived();
 
   for (const ev of branchEvents.takeEvents()) {
     switch (ev.type) {
@@ -115,6 +126,7 @@ function frame(now) {
         break;
       case 'rain-end':
         audio.rainStop();
+        logros.bump('lluvias');
         break;
       case 'bird-spawn':
         audio.chirp();
@@ -126,13 +138,22 @@ function frame(now) {
         if (scene.birdPos) scene.burst('spark', scene.birdPos.x, scene.birdPos.y);
         audio.chirp();
         quests.note('bird');
+        logros.bump('chucaos');
         break;
       }
     }
   }
 
   for (const ev of quests.takeEvents()) {
-    if (ev.type === 'quest-done') ui.questToast(ev.text, ev.reward);
+    if (ev.type === 'quest-done') {
+      ui.questToast(ev.text, ev.reward);
+      logros.checkDerived();
+    }
+  }
+
+  for (const ev of logros.takeEvents()) {
+    ui.logroToast(ev.def);
+    audio.unlockChime();
   }
 
   scene.draw(dt, { antRate: economy.antRate(), unlocks: state.unlocks });
@@ -146,4 +167,4 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // acceso para debug y pruebas automatizadas
-window.__ruca = { state, climb, wind, economy, events: branchEvents, quests, scene };
+window.__ruca = { state, climb, wind, economy, events: branchEvents, quests, logros, scene };
