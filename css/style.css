@@ -404,6 +404,16 @@ html, body {
 .unlock p { font-size: 12px; color: rgba(242, 232, 206, .6); margin-top: 1px; line-height: 1.35; }
 .unlock .check { margin-left: auto; color: var(--savia); font-weight: 700; font-size: 18px; flex-shrink: 0; }
 
+/* logros: mismas filas que los umbrales de savia, con progreso x/y */
+.logro .at.prog { font-size: 12px; min-width: 64px; line-height: 1.2; word-break: keep-all; }
+#logros-count {
+  font-family: var(--texto);
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(242, 232, 206, .55);
+  margin-left: 6px;
+}
+
 /* ---------- toasts ---------- */
 #toasts {
   position: absolute;

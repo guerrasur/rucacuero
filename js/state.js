@@ -9,10 +9,13 @@ export const state = {
   sap: 0,
   height: 0,
   bestHeight: 0,
-  upgrades: { feromonas: 0, reina: 0, nudos: 0, mielada: 0 },
+  upgrades: { feromonas: 0, reina: 0, nudos: 0, mielada: 0, ofrenda: 0 },
   unlocks: [],
   quest: null, // misión activa: { id, target, progress }
   questsDone: 0,
+  // contadores de toda la vida (solo suben): alimentan los logros permanentes
+  life: { metros: 0, perfectos: 0, chucaos: 0, lluvias: 0, gastadas: 0, enjambres: 0 },
+  logros: [], // ids de logros ya cumplidos
 };
 
 function num(x) {
@@ -49,6 +52,12 @@ export function load() {
       ? { id: data.quest.id, target: Math.max(1, Math.floor(num(data.quest.target))), progress: num(data.quest.progress) }
       : null;
   state.questsDone = Math.floor(num(data.questsDone));
+  // campos agregados en iteraciones posteriores: un save viejo migra a defaults
+  const lf = data.life || {};
+  for (const k of Object.keys(state.life)) {
+    state.life[k] = num(lf[k]);
+  }
+  state.logros = Array.isArray(data.logros) ? data.logros.filter(s => typeof s === 'string') : [];
 }
 
 export function save() {

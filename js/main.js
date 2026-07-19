@@ -7,6 +7,7 @@ import * as ui from './ui.js';
 import * as audio from './audio.js';
 import { branchEvents } from './events.js';
 import * as quests from './quests.js';
+import * as logros from './logros.js';
 
 load();
 initAutosave();
@@ -31,6 +32,11 @@ canvas.addEventListener('pointerdown', e => {
   const bp = scene.birdPos;
   if (bp && bp.active && Math.hypot(e.clientX - bp.x, e.clientY - bp.y) < bp.r) {
     branchEvents.scareBird();
+    return;
+  }
+  const sp = scene.swarmPos;
+  if (sp && sp.active && Math.hypot(e.clientX - sp.x, e.clientY - sp.y) < sp.r) {
+    branchEvents.tapSwarm();
     return;
   }
   climb.press();
@@ -65,8 +71,14 @@ function frame(now) {
   climb.update(dt);
   if (climb.phase === 'charging') audio.chargeUpdate(climb.power);
   else audio.chargeEnd();
+  audio.ambientUpdate(dt, {
+    raining: branchEvents.raining(),
+    foggy: !!branchEvents.fog,
+    gusting: wind.windy(),
+  });
 
-  for (const ev of climb.takeEvents()) {
+  const climbEvents = climb.takeEvents();
+  for (const ev of climbEvents) {
     ui.onClimbEvent(ev);
     switch (ev.type) {
       case 'grab':
@@ -74,14 +86,21 @@ function frame(now) {
         scene.burst('bark');
         quests.note('grab', 1, { windy: wind.windy() });
         quests.note('meters', ev.gain);
+        logros.bump('metros', ev.gain);
         break;
       case 'perfect':
       case 'chain':
         audio.perfect();
         scene.burst('spark');
         quests.note('grab', 1, { windy: wind.windy() });
-        if (ev.type === 'perfect') quests.note('perfect');
-        if (ev.gain) quests.note('meters', ev.gain);
+        if (ev.type === 'perfect') {
+          quests.note('perfect');
+          logros.bump('perfectos');
+        }
+        if (ev.gain) {
+          quests.note('meters', ev.gain);
+          logros.bump('metros', ev.gain);
+        }
         break;
       case 'resin':
         audio.resin();
@@ -106,6 +125,8 @@ function frame(now) {
         break;
     }
   }
+  // récord y misiones son métricas derivadas: se chequean solo cuando hubo eventos
+  if (climbEvents.length) logros.checkDerived();
 
   for (const ev of branchEvents.takeEvents()) {
     switch (ev.type) {
@@ -115,10 +136,26 @@ function frame(now) {
         break;
       case 'rain-end':
         audio.rainStop();
+        logros.bump('lluvias');
         break;
       case 'bird-spawn':
         audio.chirp();
         break;
+      case 'fog-start':
+        ui.showBanner('Niebla', 'savia ×1,5 · zona dulce angosta');
+        break;
+      case 'swarm-spawn':
+        audio.shimmer();
+        break;
+      case 'swarm-tapped': {
+        const bonus = Math.max(15, Math.round(economy.antRate() * 30));
+        state.ants += bonus;
+        ui.flash(`+${bonus.toLocaleString('es-AR')} hormigas`, 'good');
+        if (scene.swarmPos) scene.burst('spark', scene.swarmPos.x, scene.swarmPos.y);
+        audio.shimmer();
+        logros.bump('enjambres');
+        break;
+      }
       case 'bird-scared': {
         const bonus = Math.max(12, Math.round(economy.antRate() * 25));
         state.ants += bonus;
@@ -126,13 +163,22 @@ function frame(now) {
         if (scene.birdPos) scene.burst('spark', scene.birdPos.x, scene.birdPos.y);
         audio.chirp();
         quests.note('bird');
+        logros.bump('chucaos');
         break;
       }
     }
   }
 
   for (const ev of quests.takeEvents()) {
-    if (ev.type === 'quest-done') ui.questToast(ev.text, ev.reward);
+    if (ev.type === 'quest-done') {
+      ui.questToast(ev.text, ev.reward);
+      logros.checkDerived();
+    }
+  }
+
+  for (const ev of logros.takeEvents()) {
+    ui.logroToast(ev.def);
+    audio.unlockChime();
   }
 
   scene.draw(dt, { antRate: economy.antRate(), unlocks: state.unlocks });
@@ -145,5 +191,12 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) last = performance.now();
 });
 
+// PWA: instalable en el celular. En localhost no se registra (salvo ?sw=1)
+// para que el desarrollo y los tests nunca vean caché rancio.
+const esLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+if ('serviceWorker' in navigator && (!esLocal || new URLSearchParams(location.search).has('sw'))) {
+  navigator.serviceWorker.register('sw.js');
+}
+
 // acceso para debug y pruebas automatizadas
-window.__ruca = { state, climb, wind, economy, events: branchEvents, quests, scene };
+window.__ruca = { state, climb, wind, economy, events: branchEvents, quests, logros, scene };

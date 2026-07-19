@@ -35,6 +35,15 @@ export const UPGRADES = [
     max: 15,
     requiresUnlock: 'mielada',
   },
+  {
+    id: 'ofrenda',
+    name: 'Ofrenda de mielada',
+    desc: 'Un tributo al monte que siempre acepta más. +5% de hormigas por nivel, sin tope.',
+    baseCost: 20000,
+    growth: 3,
+    max: Infinity,
+    requiresAllMaxed: true, // recién aparece con todo lo demás al máximo
+  },
 ];
 
 export const SAP_UNLOCKS = [
@@ -62,13 +71,19 @@ export const SAP_UNLOCKS = [
     name: 'Salto largo',
     desc: 'Una soltada perfecta encadena dos nudos de un tirón.',
   },
+  {
+    id: 'brisa',
+    at: 2000,
+    name: 'Abrigo de brisa',
+    desc: 'Conocés cada remolino: la ráfaga te angosta menos la zona dulce.',
+  },
 ];
 
 export const SAP_RATE = 0.2; // savia por segundo, constante, solo con el juego abierto
 
 export function antRate() {
   const u = state.upgrades;
-  return (0.5 + 0.35 * u.feromonas + 2.5 * u.mielada) * Math.pow(1.5, u.reina);
+  return (0.5 + 0.35 * u.feromonas + 2.5 * u.mielada) * Math.pow(1.5, u.reina) * (1 + 0.05 * u.ofrenda);
 }
 
 // Probabilidad de resbalón por mala suerte tras un agarre limpio.
@@ -82,7 +97,11 @@ export function upgradeCost(def) {
 }
 
 export function upgradeAvailable(def) {
-  return !def.requiresUnlock || state.unlocks.includes(def.requiresUnlock);
+  if (def.requiresUnlock && !state.unlocks.includes(def.requiresUnlock)) return false;
+  if (def.requiresAllMaxed) {
+    return UPGRADES.every(d => d === def || !Number.isFinite(d.max) || state.upgrades[d.id] >= d.max);
+  }
+  return true;
 }
 
 export function canBuy(def) {

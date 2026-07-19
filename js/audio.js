@@ -46,6 +46,51 @@ export function ensure() {
   noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
   const d = noiseBuf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  ambientEnsure();
+}
+
+// ---------- ambiente del monte de noche ----------
+// Pad de viento grave siempre presente (muy sutil) + trenes de grillos.
+// Cuelga de master, así el mute existente lo silencia sin código extra.
+const AMB_BASE = 0.018;
+let ambGain = null;
+let cricketTimer = 2;
+
+function ambientEnsure() {
+  if (!ac || ambGain) return;
+  const src = ac.createBufferSource();
+  src.buffer = noiseBuf;
+  src.loop = true;
+  const f = ac.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 180;
+  ambGain = ac.createGain();
+  ambGain.gain.value = 0;
+  src.connect(f).connect(ambGain).connect(master);
+  src.start();
+}
+
+// Llamada una vez por frame desde el loop principal.
+export function ambientUpdate(dt, ctxInfo = {}) {
+  if (!ac || !ambGain) return;
+  let target = AMB_BASE;
+  if (ctxInfo.raining) target = 0; // la lluvia ocupa ese espacio sonoro
+  else if (ctxInfo.foggy) target *= 1.4; // con niebla el viento "se siente" más
+  else if (ctxInfo.gusting) target *= 0.6; // la ráfaga ya tiene su propio sonido
+  const cur = ambGain.gain.value;
+  ambGain.gain.value = cur + (target - cur) * Math.min(1, dt * 2);
+
+  cricketTimer -= dt;
+  if (cricketTimer <= 0) {
+    cricketTimer = 1.5 + Math.random() * 2.5;
+    if (!muted && !ctxInfo.raining) {
+      const n = 3 + Math.floor(Math.random() * 3);
+      const base = 4200 + Math.random() * 600;
+      for (let i = 0; i < n; i++) {
+        setTimeout(() => blip(base, 'sine', 0.015, 0.03), i * 70);
+      }
+    }
+  }
 }
 
 function env(g, t0, attack, peak, decay) {
@@ -137,6 +182,11 @@ export function gust(dur = 2.2) {
   src.connect(f).connect(g).connect(master);
   src.start(t);
   src.stop(t + dur + 0.1);
+}
+
+// Destello del enjambre de luciérnagas: arpegio corto y brillante.
+export function shimmer() {
+  [880, 1175, 1568].forEach((f, i) => setTimeout(() => blip(f, 'triangle', 0.12, 0.18), i * 70));
 }
 
 // Chirrido corto del chucao.

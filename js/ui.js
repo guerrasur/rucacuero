@@ -13,6 +13,7 @@ import { climb, wind } from './climb.js';
 import { SAP_RATE, antRate as antRateFn, slipChance } from './economy.js';
 import * as audio from './audio.js';
 import * as quests from './quests.js';
+import * as logros from './logros.js';
 
 const $ = id => document.getElementById(id);
 const ANT_SVG =
@@ -21,6 +22,7 @@ const ANT_SVG =
 let els = {};
 let shopOpen = false;
 let lastShopRefresh = 0;
+const logroCache = {}; // último texto escrito por fila de logro (disciplina DOM)
 
 const fmtInt = n => Math.floor(n).toLocaleString('es-AR');
 const fmtH = h =>
@@ -41,6 +43,8 @@ export function init() {
     shopBtn: $('shop-btn'),
     upgradeList: $('upgrade-list'),
     unlockList: $('unlock-list'),
+    logrosList: $('logros-list'),
+    logrosCount: $('logros-count'),
     toasts: $('toasts'),
     shopStats: $('shop-stats'),
     zoneBanner: $('zone-banner'),
@@ -97,10 +101,12 @@ function buildShop() {
       `<div class="card-info"><h3>${def.name}<span class="lvl"></span></h3><p>${def.desc}</p></div>` +
       `<button class="buy">${ANT_SVG}<span class="cost"></span></button>`;
     card.querySelector('.buy').addEventListener('click', () => {
+      const costo = upgradeCost(def); // capturar antes: la compra sube el nivel
       if (buy(def)) {
         audio.ensure();
         audio.buy();
         quests.note('buy');
+        logros.bump('gastadas', costo);
         refreshShop(true);
       }
     });
@@ -117,6 +123,18 @@ function buildShop() {
       `<div><h3>${u.name}</h3><p>${u.desc}</p></div>` +
       `<div class="check"></div>`;
     els.unlockList.appendChild(row);
+  }
+
+  els.logrosList.innerHTML = '';
+  for (const def of logros.LOGROS) {
+    const row = document.createElement('div');
+    row.className = 'unlock logro';
+    row.dataset.id = def.id;
+    row.innerHTML =
+      `<div class="at prog"></div>` +
+      `<div><h3>${def.name}</h3><p>${def.desc} +${fmtInt(def.reward)} hormigas.</p></div>` +
+      `<div class="check"></div>`;
+    els.logrosList.appendChild(row);
   }
   refreshShop(true);
 }
@@ -155,6 +173,23 @@ function refreshShop(force) {
     row.querySelector('.check').textContent = done ? '✓' : '';
   }
 
+  for (const row of els.logrosList.children) {
+    const def = logros.LOGROS.find(d => d.id === row.dataset.id);
+    const done = state.logros.includes(def.id);
+    const prog = done ? `${fmtInt(def.at)}` : `${fmtInt(logros.progressFor(def))}/${fmtInt(def.at)}`;
+    if (logroCache[def.id] !== prog) {
+      logroCache[def.id] = prog;
+      row.classList.toggle('locked', !done);
+      row.querySelector('.prog').textContent = prog;
+      row.querySelector('.check').textContent = done ? '✓' : '';
+    }
+  }
+  const count = `${logros.doneCount()}/${logros.LOGROS.length}`;
+  if (logroCache._count !== count) {
+    logroCache._count = count;
+    els.logrosCount.textContent = count;
+  }
+
   const rate = antRateFn().toLocaleString('es-AR', { maximumFractionDigits: 2 });
   const slipPct = (slipChance(false) * 100).toLocaleString('es-AR', { maximumFractionDigits: 1 });
   const sapRate = SAP_RATE.toLocaleString('es-AR', { minimumFractionDigits: 1 });
@@ -182,6 +217,15 @@ export function showBanner(title, sub) {
   els.zoneBanner.className = '';
   void els.zoneBanner.offsetWidth;
   els.zoneBanner.className = 'show';
+}
+
+export function logroToast(def) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<b>Logro · ${def.name}</b><span>${def.desc} +${fmtInt(def.reward)} hormigas</span>`;
+  els.toasts.appendChild(el);
+  setTimeout(() => el.remove(), 3700);
+  refreshShop(true);
 }
 
 export function questToast(text, reward) {

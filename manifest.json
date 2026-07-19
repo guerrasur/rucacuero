@@ -1,0 +1,17 @@
+{
+  "name": "Ruca Cuero",
+  "short_name": "Ruca Cuero",
+  "description": "Escalá la rama gigante del monte, de noche, con tus hormigas.",
+  "lang": "es-AR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#131B12",
+  "theme_color": "#131B12",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
