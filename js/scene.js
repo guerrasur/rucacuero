@@ -530,11 +530,26 @@ export class Scene {
     ctx.globalAlpha = 0.16 * a;
     ctx.fillStyle = C.savia;
     ctx.fillRect(bx - this.bw * 0.62, y1, this.bw * 1.24, y2 - y1);
-    // micro-zona perfecta: siempre visible — soltar ahí nunca falla
+    // micro-zona perfecta: siempre visible y distinta — soltar ahí nunca
+    // falla y sostiene la racha. Late con un pulso y bordes de hueso.
+    const pulse = 0.7 + 0.3 * Math.sin(this.t * 6);
     const py1 = this.yOf(kh + PERFECT_W);
     const py2 = this.yOf(kh - PERFECT_W);
-    ctx.globalAlpha = 0.3 * a;
+    const gs = 54 + 10 * pulse;
+    ctx.globalAlpha = 0.75 * a * pulse;
+    ctx.drawImage(this.glowSprite, bx - gs / 2, this.yOf(kh) - gs / 2, gs, gs);
+    ctx.globalAlpha = (0.26 + 0.14 * pulse) * a;
+    ctx.fillStyle = C.savia;
     ctx.fillRect(bx - this.bw * 0.62, py1, this.bw * 1.24, py2 - py1);
+    ctx.globalAlpha = (0.35 + 0.35 * pulse) * a;
+    ctx.strokeStyle = C.hueso;
+    ctx.lineWidth = 1.2;
+    for (const yy of [py1, py2]) {
+      ctx.beginPath();
+      ctx.moveTo(bx - this.bw * 0.5, yy);
+      ctx.lineTo(bx + this.bw * 0.5, yy);
+      ctx.stroke();
+    }
     ctx.globalAlpha = 0.55 * a;
     ctx.strokeStyle = C.savia;
     ctx.lineWidth = 1.5;

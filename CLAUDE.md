@@ -57,7 +57,11 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   `CHARGE_SPEED=0.55` pot/s, zona dulce ±0.55 m (±0.30 con ráfaga, ±0.38 con
   unlock `brisa`), `PERFECT_W=0.14` (soltada dentro de ±0.14 = agarre
   perfecto, **inmune a la tirada de mala suerte** — la micro-zona premia la
-  precisión y se dibuja siempre). Pérdidas: corto −1.2, pasado −3.0,
+  precisión, se dibuja siempre con pulso + bordes hueso + glow). Racha de
+  perfectos: `STREAK_MULTS=[1,1.1,1.2,1.3,1.5,1.7,2]` multiplica los metros
+  ganados (impulso extra en `release()`, solo suma); cualquier soltada no
+  perfecta la corta (`breakStreak()`); badge `#mult` en el HUD con animación
+  pop por cada perfecto. Pérdidas: corto −1.2, pasado −3.0,
   mala suerte −2.2 (clamp a 0). `climb.mods` = hooks inyectados por main
   (lluvia/niebla: slipBonus/sweetMul). Eventos via `emit()`/`takeEvents()`.
 - `events.js` — `branchEvents`, un evento a la vez, cooldown 40-80 s, spawn
