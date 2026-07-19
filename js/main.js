@@ -191,5 +191,12 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) last = performance.now();
 });
 
+// PWA: instalable en el celular. En localhost no se registra (salvo ?sw=1)
+// para que el desarrollo y los tests nunca vean caché rancio.
+const esLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+if ('serviceWorker' in navigator && (!esLocal || new URLSearchParams(location.search).has('sw'))) {
+  navigator.serviceWorker.register('sw.js');
+}
+
 // acceso para debug y pruebas automatizadas
 window.__ruca = { state, climb, wind, economy, events: branchEvents, quests, logros, scene };
