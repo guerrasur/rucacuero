@@ -283,9 +283,15 @@ export function onClimbEvent(ev) {
 }
 
 // cache de lo último escrito: tocar el DOM solo cuando el texto cambia
-const hud = { h: '', rec: '', ants: '', sap: '', bar: -1, quest: '' };
+const hud = { h: '', rec: '', ants: '', sap: '', bar: -1, quest: '', charging: false };
 
 export function update() {
+  // durante la carga, la UI se atenúa (clase en body, solo cuando cambia)
+  const charging = climb.phase === 'charging';
+  if (charging !== hud.charging) {
+    hud.charging = charging;
+    document.body.classList.toggle('charging', charging);
+  }
   const h = fmtH(climb.visualHeight());
   if (h !== hud.h) {
     hud.h = h;

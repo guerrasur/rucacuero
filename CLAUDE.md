@@ -89,8 +89,10 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   `scene.birdPos` y `scene.swarmPos` los usa main para el hit-test del tap.
 - `ui.js` — HUD (escrituras DOM **solo cuando cambia el texto** — mantener),
   tienda bottom-sheet (mejoras + savia + logros), toasts, `showBanner()`,
-  `flash()`, chip de misión, mute (los SVG no tienen `.hidden`: usar
-  `toggleAttribute`).
+  `flash()`, chip de misión (abajo, entre tienda y mute, `pointer-events:
+  none` — el tap pasa al canvas), clase `body.charging` que atenúa
+  HUD/toasts/chip durante la carga (la zona de puntería queda limpia), mute
+  (los SVG no tienen `.hidden`: usar `toggleAttribute`).
 - `audio.js` — todo procedural con WebAudio (sin assets). `ensure()` debe
   llamarse desde un gesto. Loops con estado: carga (osc), lluvia (noise) y
   ambiente (pad de viento lowpass 180 Hz + grillos; `ambientUpdate(dt, ctx)`
