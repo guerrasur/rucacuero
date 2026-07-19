@@ -55,7 +55,9 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   (calm→warn→gust) y objeto `climb` (máquina de estados
   idle→charging→leaping→slipping). Constantes clave: `MAX_JUMP=6` m,
   `CHARGE_SPEED=0.55` pot/s, zona dulce ±0.55 m (±0.30 con ráfaga, ±0.38 con
-  unlock `brisa`), `PERFECT_W=0.14`. Pérdidas: corto −1.2, pasado −3.0,
+  unlock `brisa`), `PERFECT_W=0.14` (soltada dentro de ±0.14 = agarre
+  perfecto, **inmune a la tirada de mala suerte** — la micro-zona premia la
+  precisión y se dibuja siempre). Pérdidas: corto −1.2, pasado −3.0,
   mala suerte −2.2 (clamp a 0). `climb.mods` = hooks inyectados por main
   (lluvia/niebla: slipBonus/sweetMul). Eventos via `emit()`/`takeEvents()`.
 - `events.js` — `branchEvents`, un evento a la vez, cooldown 40-80 s, spawn

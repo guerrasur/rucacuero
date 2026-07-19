@@ -192,10 +192,11 @@ export const climb = {
       this.emit('over');
       return;
     }
-    // agarre limpio: tirada de mala suerte (salvo encadenado de salto largo)
+    // agarre limpio: tirada de mala suerte (salvo encadenado de salto largo
+    // o soltada perfecta — la micro-zona premia la precisión: ahí no se falla)
     this.jumpsSinceResin += 1;
     const slipP = Math.min(0.6, slipChance(wind.windy()) + this.mods.slipBonus());
-    if (!this.chainSafe && Math.random() < slipP) {
+    if (!this.chainSafe && !this.perfect && Math.random() < slipP) {
       if (state.unlocks.includes('resina') && this.jumpsSinceResin >= RESIN_EVERY) {
         this.jumpsSinceResin = 0;
         this.emit('resin');

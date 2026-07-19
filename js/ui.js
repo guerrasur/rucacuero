@@ -243,7 +243,7 @@ const FEEDBACK = {
   resin: { text: 'La resina te salvó', cls: 'good' },
   short: { text: 'Muy corto…', cls: 'shake' },
   over: { text: 'Te pasaste', cls: 'shake' },
-  badluck: { text: '¡Resbalón!', cls: 'shake' },
+  badluck: { text: '¡Mala suerte!', cls: 'shake' },
 };
 
 export function flash(text, cls) {
