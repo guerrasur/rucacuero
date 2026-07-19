@@ -25,7 +25,10 @@ export function setMuted(m) {
     /* no persiste, pero silencia igual */
   }
   if (master) master.gain.value = m ? 0 : 0.5;
-  if (m) chargeEnd();
+  if (m) {
+    chargeEnd();
+    rainStop();
+  }
 }
 
 // Debe llamarse desde un gesto del usuario (política de autoplay).
@@ -134,6 +137,48 @@ export function gust(dur = 2.2) {
   src.connect(f).connect(g).connect(master);
   src.start(t);
   src.stop(t + dur + 0.1);
+}
+
+// Chirrido corto del chucao.
+export function chirp() {
+  blip(1300, 'sine', 0.14, 0.08, 1750);
+  setTimeout(() => blip(1550, 'sine', 0.11, 0.09, 1100), 110);
+}
+
+export function questDone() {
+  blip(587, 'triangle', 0.22, 0.25);
+  setTimeout(() => blip(880, 'triangle', 0.22, 0.35), 120);
+}
+
+// Lluvia: ruido en loop con entrada y salida suaves.
+let rainSrc = null;
+let rainGain = null;
+
+export function rainStart() {
+  if (!ac || muted || rainSrc) return;
+  const t = ac.currentTime;
+  rainSrc = ac.createBufferSource();
+  rainSrc.buffer = noiseBuf;
+  rainSrc.loop = true;
+  const f = ac.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 850;
+  rainGain = ac.createGain();
+  rainGain.gain.setValueAtTime(0, t);
+  rainGain.gain.linearRampToValueAtTime(0.05, t + 1.5);
+  rainSrc.connect(f).connect(rainGain).connect(master);
+  rainSrc.start(t);
+}
+
+export function rainStop() {
+  if (!rainSrc) return;
+  const t = ac.currentTime;
+  rainGain.gain.cancelScheduledValues(t);
+  rainGain.gain.setValueAtTime(rainGain.gain.value, t);
+  rainGain.gain.linearRampToValueAtTime(0.0001, t + 1);
+  rainSrc.stop(t + 1.1);
+  rainSrc = null;
+  rainGain = null;
 }
 
 // Zumbido sutil que sube de tono con la carga del salto.

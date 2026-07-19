@@ -11,6 +11,8 @@ export const state = {
   bestHeight: 0,
   upgrades: { feromonas: 0, reina: 0, nudos: 0, mielada: 0 },
   unlocks: [],
+  quest: null, // misión activa: { id, target, progress }
+  questsDone: 0,
 };
 
 function num(x) {
@@ -42,6 +44,11 @@ export function load() {
     state.upgrades[k] = Math.floor(num(up[k]));
   }
   state.unlocks = Array.isArray(data.unlocks) ? data.unlocks.filter(u => typeof u === 'string') : [];
+  state.quest =
+    data.quest && typeof data.quest === 'object' && typeof data.quest.id === 'string'
+      ? { id: data.quest.id, target: Math.max(1, Math.floor(num(data.quest.target))), progress: num(data.quest.progress) }
+      : null;
+  state.questsDone = Math.floor(num(data.questsDone));
 }
 
 export function save() {

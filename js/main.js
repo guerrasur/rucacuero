@@ -5,19 +5,34 @@ import { climb, wind } from './climb.js';
 import { Scene } from './scene.js';
 import * as ui from './ui.js';
 import * as audio from './audio.js';
+import { branchEvents } from './events.js';
+import * as quests from './quests.js';
 
 load();
 initAutosave();
+quests.init(economy.antRate);
+
+// la lluvia hace la corteza más resbalosa y angosta apenas la zona dulce
+climb.mods = {
+  slipBonus: () => branchEvents.slipBonus(),
+  sweetMul: () => branchEvents.sweetMul(),
+};
 
 const canvas = document.getElementById('scene');
 const scene = new Scene(canvas);
 ui.init();
 
 // input: toda la pantalla de juego es el botón de carga
+// (salvo que toques al chucao: eso lo espanta y suelta su bono)
 canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
   ui.hideHint();
   audio.ensure();
+  const bp = scene.birdPos;
+  if (bp && bp.active && Math.hypot(e.clientX - bp.x, e.clientY - bp.y) < bp.r) {
+    branchEvents.scareBird();
+    return;
+  }
   climb.press();
 });
 window.addEventListener('pointerup', () => climb.release());
@@ -42,10 +57,11 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
 
-  for (const u of economy.tick(dt)) ui.toast(u);
+  for (const u of economy.tick(dt, branchEvents.sapMul())) ui.toast(u);
   wind.update(dt);
   if (wind.phase === 'gust' && prevWindPhase !== 'gust') audio.gust(wind.dur);
   prevWindPhase = wind.phase;
+  branchEvents.update(dt);
   climb.update(dt);
   if (climb.phase === 'charging') audio.chargeUpdate(climb.power);
   else audio.chargeEnd();
@@ -56,11 +72,16 @@ function frame(now) {
       case 'grab':
         audio.grab();
         scene.burst('bark');
+        quests.note('grab', 1, { windy: wind.windy() });
+        quests.note('meters', ev.gain);
         break;
       case 'perfect':
       case 'chain':
         audio.perfect();
         scene.burst('spark');
+        quests.note('grab', 1, { windy: wind.windy() });
+        if (ev.type === 'perfect') quests.note('perfect');
+        if (ev.gain) quests.note('meters', ev.gain);
         break;
       case 'resin':
         audio.resin();
@@ -70,18 +91,48 @@ function frame(now) {
         audio.slip();
         scene.burst('dust');
         scene.addShake(0.5);
+        quests.note('slip');
         break;
       case 'over':
       case 'badluck':
         audio.slip();
         scene.burst('dust');
         scene.addShake(1);
+        quests.note('slip');
         break;
       case 'zone':
-        ui.showZone(ev.zone);
+        ui.showBanner(ev.zone.name, `${ev.zone.at} m`);
         audio.zoneFanfare();
         break;
     }
+  }
+
+  for (const ev of branchEvents.takeEvents()) {
+    switch (ev.type) {
+      case 'rain-start':
+        ui.showBanner('Lluvia', 'savia doble · corteza resbalosa');
+        audio.rainStart();
+        break;
+      case 'rain-end':
+        audio.rainStop();
+        break;
+      case 'bird-spawn':
+        audio.chirp();
+        break;
+      case 'bird-scared': {
+        const bonus = Math.max(12, Math.round(economy.antRate() * 25));
+        state.ants += bonus;
+        ui.flash(`+${bonus.toLocaleString('es-AR')} hormigas`, 'good');
+        if (scene.birdPos) scene.burst('spark', scene.birdPos.x, scene.birdPos.y);
+        audio.chirp();
+        quests.note('bird');
+        break;
+      }
+    }
+  }
+
+  for (const ev of quests.takeEvents()) {
+    if (ev.type === 'quest-done') ui.questToast(ev.text, ev.reward);
   }
 
   scene.draw(dt, { antRate: economy.antRate(), unlocks: state.unlocks });
@@ -95,4 +146,4 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // acceso para debug y pruebas automatizadas
-window.__ruca = { state, climb, wind, economy };
+window.__ruca = { state, climb, wind, economy, events: branchEvents, quests, scene };

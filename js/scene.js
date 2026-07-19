@@ -1,7 +1,8 @@
 // Render canvas de la escena: rama xilográfica, nudos, escalador, hormigas,
 // savia, luciérnagas y el elemento firma — el viento dibujado.
 import { state } from './state.js';
-import { climb, wind, knotHeight, knotHasSap, hash, MAX_JUMP, PERFECT_W, ZONES } from './climb.js';
+import { climb, wind, knotHeight, knotHasSap, knotIndexAbove, hash, MAX_JUMP, PERFECT_W, ZONES } from './climb.js';
+import { branchEvents } from './events.js';
 
 const C = {
   noche: '#131B12',
@@ -17,6 +18,12 @@ const C = {
 
 const VISIBLE_M = 9; // metros de rama visibles en pantalla
 const CHAR_Y = 0.7; // fracción de pantalla donde vive el personaje
+
+// arrays de guiones constantes: evitan alocar en cada frame
+const DASH_STRIA = [26, 21];
+const DASH_RING = [6, 7];
+const DASH_RECORD = [9, 8];
+const DASH_NONE = [];
 
 function hexLerp(a, b, t) {
   const pa = [1, 3, 5].map(i => parseInt(a.slice(i, i + 2), 16));
@@ -46,16 +53,50 @@ function zoneVerde(h) {
 export class Scene {
   constructor(canvas) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
+    // canvas opaco: el fondo se pinta entero cada frame, composición más barata
+    this.ctx = canvas.getContext('2d', { alpha: false });
     this.t = 0;
     this.cameraH = state.height;
     this.shake = 0;
     this.dpr = 1;
     this.particles = [];
     this.climberPos = { x: 0, y: 0 };
+    this.birdPos = null;
     this.strokes = this.makeWindStrokes();
+    this.glowSprite = this.makeGlowSprite();
+    this.leafDeep = [this.makeLeafSprite(C.nocheDeep, false), this.makeLeafSprite(C.nocheDeep, true)];
+    this.leafSoft = [this.makeLeafSprite(C.nocheSoft, false), this.makeLeafSprite(C.nocheSoft, true)];
     this.resize();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  // sprites pre-renderizados: crear gradientes/blobs por frame es lo más caro
+  makeGlowSprite() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 48;
+    const g = c.getContext('2d');
+    const rg = g.createRadialGradient(24, 24, 1, 24, 24, 22);
+    rg.addColorStop(0, 'rgba(240,163,42,0.30)');
+    rg.addColorStop(1, 'rgba(240,163,42,0)');
+    g.fillStyle = rg;
+    g.fillRect(0, 0, 48, 48);
+    return c;
+  }
+
+  makeLeafSprite(color, mirror) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const g = c.getContext('2d');
+    g.translate(128, 128);
+    if (mirror) g.scale(-1, 1);
+    g.fillStyle = color;
+    const R = 60;
+    g.beginPath();
+    g.arc(0, 0, R, 0, Math.PI * 2);
+    g.arc(R * 0.55, R * 0.4, R * 0.7, 0, Math.PI * 2);
+    g.arc(R * 0.2, -R * 0.55, R * 0.6, 0, Math.PI * 2);
+    g.fill();
+    return c;
   }
 
   resize() {
@@ -114,8 +155,8 @@ export class Scene {
       ctx.translate((Math.random() - 0.5) * 7 * this.shake, (Math.random() - 0.5) * 5 * this.shake);
     }
 
-    this.drawLeafLayer(0.35, C.nocheDeep, 0);
-    this.drawLeafLayer(0.65, C.nocheSoft, 40);
+    this.drawLeafLayer(0.35, this.leafDeep, 0);
+    this.drawLeafLayer(0.65, this.leafSoft, 40);
     this.drawFireflies();
     this.drawBranch();
     this.drawMilestones();
@@ -123,32 +164,30 @@ export class Scene {
     this.drawAnts(view.antRate);
     this.drawChargeOverlays();
     this.drawClimber(h);
+    this.drawBird();
     this.drawParticles(dt);
     this.drawWind(view.unlocks);
+    this.drawRain();
     ctx.restore();
 
     this.drawVignette();
   }
 
   // ---------- fondo ----------
-  drawLeafLayer(factor, color, seed) {
+  drawLeafLayer(factor, sprites, seed) {
     const { ctx } = this;
     const hp = this.cameraH * factor;
     const band = 3.2;
     const jMin = Math.floor((hp - (this.H * 0.5) / this.ppm) / band) - 1;
     const jMax = Math.ceil((hp + (this.H * 0.7) / this.ppm) / band) + 1;
-    ctx.fillStyle = color;
     for (let j = jMin; j <= jMax; j++) {
       const y = this.H * CHAR_Y - (j * band - hp) * this.ppm;
-      for (const side of [0, 1]) {
+      for (let side = 0; side < 2; side++) {
         const hs = hash(j * 2.3 + side * 7.7 + seed);
         const x = side === 0 ? hs * this.W * 0.14 : this.W - hs * this.W * 0.14;
         const r = 45 + hash(j * 5.1 + side + seed) * 65;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.arc(x + r * 0.55 * (side ? -1 : 1), y + r * 0.4, r * 0.7, 0, Math.PI * 2);
-        ctx.arc(x + r * 0.2 * (side ? -1 : 1), y - r * 0.55, r * 0.6, 0, Math.PI * 2);
-        ctx.fill();
+        const s = r * 4;
+        ctx.drawImage(sprites[side], x - s / 2, y - s / 2, s, s);
       }
     }
   }
@@ -218,7 +257,7 @@ export class Scene {
     // estrías de corteza talladas
     ctx.lineWidth = 2.4;
     ctx.strokeStyle = C.musgo;
-    ctx.setLineDash([26, 21]);
+    ctx.setLineDash(DASH_STRIA);
     for (const f of [0.22, 0.5, 0.78]) {
       ctx.lineDashOffset = -((this.cameraH * this.ppm) % 47) + f * 31;
       ctx.beginPath();
@@ -233,17 +272,14 @@ export class Scene {
       }
       ctx.stroke();
     }
-    ctx.setLineDash([]);
+    ctx.setLineDash(DASH_NONE);
     ctx.restore();
 
-    // nudos visibles
-    let i = 0;
-    for (;;) {
+    // nudos visibles: arranca directo del primer nudo en pantalla
+    for (let i = knotIndexAbove(bot); ; i++) {
       const kh = knotHeight(i);
       if (kh > top) break;
-      if (kh > bot) this.drawKnot(i, kh);
-      i++;
-      if (i > 5000) break;
+      this.drawKnot(i, kh);
     }
   }
 
@@ -288,12 +324,12 @@ export class Scene {
     if (i === climb.targetKnot && (climb.phase === 'idle' || climb.phase === 'charging')) {
       ctx.strokeStyle = C.hueso;
       ctx.lineWidth = 2.5;
-      ctx.setLineDash([6, 7]);
+      ctx.setLineDash(DASH_RING);
       ctx.lineDashOffset = -this.t * 16;
       ctx.beginPath();
       ctx.arc(cx, y, r + 8, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.setLineDash(DASH_NONE);
     }
 
     if (knotHasSap(i)) this.drawSap(cx + r * 0.55, y + r + 7, i);
@@ -302,12 +338,8 @@ export class Scene {
   drawSap(x, y, seed) {
     const { ctx } = this;
     const pulse = 0.75 + 0.25 * Math.sin(this.t * 1.8 + seed);
-    const glow = ctx.createRadialGradient(x, y, 1, x, y, 22);
-    glow.addColorStop(0, 'rgba(240,163,42,0.30)');
-    glow.addColorStop(1, 'rgba(240,163,42,0)');
     ctx.globalAlpha = pulse;
-    ctx.fillStyle = glow;
-    ctx.fillRect(x - 22, y - 22, 44, 44);
+    ctx.drawImage(this.glowSprite, x - 22, y - 22, 44, 44);
     ctx.globalAlpha = 1;
 
     ctx.beginPath();
@@ -356,12 +388,12 @@ export class Scene {
     ctx.globalAlpha = 0.55;
     ctx.strokeStyle = C.hueso;
     ctx.lineWidth = 2;
-    ctx.setLineDash([9, 8]);
+    ctx.setLineDash(DASH_RECORD);
     ctx.beginPath();
     ctx.moveTo(bx - this.bw * 0.75, y);
     ctx.lineTo(bx + this.bw * 0.75, y);
     ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.setLineDash(DASH_NONE);
     // banderín
     ctx.globalAlpha = 0.85;
     const fx = bx + this.bw * 0.75;
@@ -380,8 +412,9 @@ export class Scene {
   }
 
   // ---------- partículas ----------
-  burst(kind) {
-    const { x, y } = this.climberPos;
+  burst(kind, px, py) {
+    const x = px ?? this.climberPos.x;
+    const y = py ?? this.climberPos.y;
     const defs = {
       bark: { n: 7, colors: [C.musgo, C.tinta], up: -70, spread: 130, size: 3.5 },
       spark: { n: 9, colors: [C.savia, C.hueso], up: -110, spread: 160, size: 2.6 },
@@ -628,6 +661,131 @@ export class Scene {
       default:
         return { crouch: 0.18 + Math.sin(this.t * 1.1) * 0.04, reach: 0.55, flail: 0 };
     }
+  }
+
+  // ---------- chucao (evento pájaro) ----------
+  drawBird() {
+    const b = branchEvents.bird;
+    if (!b) {
+      this.birdPos = null;
+      return;
+    }
+    const y0 = this.yOf(b.h);
+    const bx = this.branchX(b.h) + b.side * (this.bw / 2 + 8);
+    let x = bx;
+    let y = y0;
+    let flap = 0;
+    if (b.phase === 'fly') {
+      const t = b.flyT;
+      x = bx + b.side * t * this.W * 0.6;
+      y = y0 - t * this.H * 0.45 - Math.sin(t * Math.PI) * 40;
+      flap = Math.sin(t * 26) * 0.9;
+    } else {
+      y += Math.sin(this.t * 2.6) * 1.5;
+    }
+    this.birdPos = { x, y, r: 36, active: b.phase === 'perch' };
+
+    const { ctx } = this;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(-b.side, 1); // siempre mira hacia la rama
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = C.tinta;
+    ctx.lineJoin = 'round';
+
+    // cola parada, estilo chucao
+    ctx.save();
+    ctx.rotate(-0.15 + Math.sin(this.t * 2.2) * 0.06);
+    ctx.beginPath();
+    ctx.moveTo(6, -2);
+    ctx.lineTo(19, -15);
+    ctx.lineTo(13, 1);
+    ctx.closePath();
+    ctx.fillStyle = C.ocre;
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // ala (aletea al volar)
+    if (flap) {
+      ctx.save();
+      ctx.translate(2, -3);
+      ctx.rotate(flap);
+      ctx.beginPath();
+      ctx.ellipse(0, -4, 9, 4, -0.4, 0, Math.PI * 2);
+      ctx.fillStyle = C.ocre;
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // cuerpo + pecho savia + cabeza
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 10, 8, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C.ocre;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(-3.5, 3, 5.5, 4.5, 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = C.savia;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 10, 8, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(-8, -7, 5.5, 0, Math.PI * 2);
+    ctx.fillStyle = C.ocre;
+    ctx.fill();
+    ctx.stroke();
+
+    // pico y ojo
+    ctx.beginPath();
+    ctx.moveTo(-12.5, -8);
+    ctx.lineTo(-17.5, -6.5);
+    ctx.lineTo(-12, -5.2);
+    ctx.closePath();
+    ctx.fillStyle = C.tinta;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(-9, -8.2, 1.3, 0, Math.PI * 2);
+    ctx.fillStyle = C.hueso;
+    ctx.fill();
+
+    // patitas sobre el borde
+    if (b.phase === 'perch') {
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-2, 7);
+      ctx.lineTo(-3, 12);
+      ctx.moveTo(3, 7);
+      ctx.lineTo(3.5, 12);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ---------- lluvia (evento) ----------
+  drawRain() {
+    const env = branchEvents.rainEnv();
+    if (env <= 0) return;
+    const { ctx } = this;
+    ctx.globalAlpha = 0.26 * env;
+    ctx.strokeStyle = C.hueso;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < 44; i++) {
+      const spd = 420 + hash(i * 13) * 240;
+      const x0 = hash(i * 7) * this.W * 1.08 - 12;
+      const y0 = ((hash(i * 3) + (this.t * spd) / this.H) % 1) * this.H;
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x0 - 4, y0 + 15);
+    }
+    ctx.stroke();
+    // el monte se oscurece apenas bajo la lluvia
+    ctx.globalAlpha = 0.1 * env;
+    ctx.fillStyle = '#0d1418';
+    ctx.fillRect(0, 0, this.W, this.H);
+    ctx.globalAlpha = 1;
   }
 
   // ---------- viento dibujado (elemento firma) ----------
