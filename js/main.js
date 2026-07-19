@@ -71,6 +71,11 @@ function frame(now) {
   climb.update(dt);
   if (climb.phase === 'charging') audio.chargeUpdate(climb.power);
   else audio.chargeEnd();
+  audio.ambientUpdate(dt, {
+    raining: branchEvents.raining(),
+    foggy: !!branchEvents.fog,
+    gusting: wind.windy(),
+  });
 
   const climbEvents = climb.takeEvents();
   for (const ev of climbEvents) {
