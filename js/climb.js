@@ -32,6 +32,8 @@ export const ZONES = [
   { at: 70,  name: 'Copa ventosa',   verde: '#699F55', gapMul: 1.04, sap: 0.35, sweetMul: 0.95, calm: [3.5, 6.5], gust: [2.4, 3.4] },
   { at: 120, name: 'Rama joven',     verde: '#8AB33D', gapMul: 0.94, sap: 0.55, sweetMul: 0.95, calm: [4.5, 8],  gust: [2.0, 2.8] },
   { at: 180, name: 'Cielo de hojas', verde: '#7BAA69', gapMul: 1.15, sap: 0.3,  sweetMul: 0.9,  calm: [3, 5.5],  gust: [2.6, 3.6] },
+  { at: 260, name: 'Enramada del alerce', verde: '#5E8F5C', gapMul: 1.24, sap: 0.4,  sweetMul: 0.85, calm: [2.5, 4.5], gust: [2.8, 3.8] },
+  { at: 360, name: 'Filo de la luna',     verde: '#93A98B', gapMul: 1.32, sap: 0.55, sweetMul: 0.8,  calm: [2, 4],     gust: [3, 4.2] },
 ];
 
 export function zoneAt(h) {
@@ -142,7 +144,9 @@ export const climb = {
   },
 
   sweetW() {
-    return (wind.windy() ? SWEET_WIND : SWEET_BASE) * zoneAt(state.height).sweetMul * this.mods.sweetMul();
+    // "abrigo de brisa": la ráfaga angosta menos la zona dulce
+    const windW = state.unlocks.includes('brisa') ? 0.38 : SWEET_WIND;
+    return (wind.windy() ? windW : SWEET_BASE) * zoneAt(state.height).sweetMul * this.mods.sweetMul();
   },
   landingH() {
     return state.height + this.power * MAX_JUMP;
