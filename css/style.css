@@ -116,9 +116,11 @@ html, body {
 }
 
 /* chip de misión: abajo, entre los botones de tienda y mute — la zona del
-   objetivo siempre está arriba del escalador, acá no tapa nada */
+   objetivo siempre está arriba del escalador, acá no tapa nada.
+   fixed (no absolute): se ancla al viewport aunque un caché viejo del HTML
+   lo deje anidado dentro del HUD */
 #quest {
-  position: absolute;
+  position: fixed;
   left: 84px;
   right: 72px;
   bottom: calc(24px + env(safe-area-inset-bottom));
