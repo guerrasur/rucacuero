@@ -115,6 +115,17 @@ html, body {
   text-shadow: 0 2px 4px rgba(0, 0, 0, .6);
 }
 
+/* cuenta regresiva del modo carrera */
+#timer {
+  margin-top: 3px;
+  font-family: var(--display);
+  font-size: 19px;
+  color: var(--savia);
+  text-shadow: 0 2px 0 var(--tinta), 0 5px 14px rgba(0, 0, 0, .5);
+  font-variant-numeric: tabular-nums;
+}
+#timer.acaba { color: var(--ocre); }
+
 /* chip de misión: abajo, entre los botones de tienda y mute — la zona del
    objetivo siempre está arriba del escalador, acá no tapa nada.
    fixed (no absolute): se ancla al viewport aunque un caché viejo del HTML
@@ -301,6 +312,30 @@ body.charging #quest { opacity: .18; }
 #ropero-btn { left: auto; right: 14px; }
 #shop-btn:active, #ropero-btn:active { transform: scale(.92); }
 #shop-btn svg, #ropero-btn svg { width: 30px; height: 30px; }
+
+/* botón de modo: alterna carrera ↔ zen (muestra el modo al que vas) */
+#modo-btn {
+  position: absolute;
+  left: 14px;
+  bottom: calc(88px + env(safe-area-inset-bottom));
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(42, 28, 20, .85);
+  border: 2px solid rgba(242, 232, 206, .25);
+  color: rgba(242, 232, 206, .85);
+  font-family: var(--display);
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 3;
+}
+#modo-btn:active { transform: scale(.94); }
+
+/* en carrera la moneda es la hormiga colorada (ocre, extra de paleta);
+   el chip de misión es cosa del zen */
+body.mode-carrera #ants-counter { color: var(--ocre); }
+body.mode-carrera #quest { display: none; }
+body.charging #modo-btn { opacity: .18; }
+#modo-btn { transition: opacity .3s; }
 
 #mute-btn {
   position: absolute;

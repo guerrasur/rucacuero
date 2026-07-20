@@ -7,6 +7,20 @@ sirve estático: `python3 -m http.server 8123` y abrir `http://localhost:8123`.
 Idioma del proyecto: **español rioplatense** (UI, comentarios, commits).
 Formato de números: `toLocaleString('es-AR')` (coma decimal).
 
+## Dos modos (botón `#modo-btn`)
+
+- **Carrera** (principal, default): contrarreloj desde el tallo (60 s + mejoras).
+  Los perfectos encadenados multiplican el salto **exponencialmente y sin tope**
+  (`1,25^racha`, la zona dulce/perfecta escala igual → el timing no se endurece;
+  la cámara hace zoom out). Al agotarse el tiempo el jugador cae a la raíz y la
+  altura pico paga **hormigas coloradas** (moneda propia, HUD en ocre) con 4
+  mejoras propias (`carrera.js`). El récord y la altura son por modo.
+- **Zen**: el juego original intacto (escalada libre persistente, hormigas
+  negras pasivas, eventos de rama y misiones SOLO acá). La savia y sus unlocks
+  corren en ambos modos. `state.height/bestHeight` son siempre del modo activo;
+  `state.zen` y `state.carrera` guardan lo persistente de cada uno (save viejo
+  migra su altura al zen).
+
 ## Reglas de diseño INVIOLABLES (vienen del pedido del usuario)
 
 1. **Tres capas de progreso aisladas**:
@@ -39,7 +53,8 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
 ## Mapa de módulos (todos en `js/`, ~2600 líneas en total)
 
 - `state.js` — objeto `state` + load/save/autosave. Schema del save:
-  `{ v:1, ants, sap, height, bestHeight,
+  `{ v:1, mode:'carrera'|'zen', ants, sap, height, bestHeight,
+  zen:{height,best}, carrera:{ants,best,upgrades:{resorte,reloj,eco,botin}},
   upgrades:{feromonas,reina,nudos,mielada,ofrenda}, unlocks:[ids],
   quest:{id,target,progress}|null, questsDone,
   life:{metros,perfectos,chucaos,lluvias,gastadas,enjambres}, logros:[ids],
@@ -49,7 +64,13 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
 - `economy.js` — `UPGRADES` (5; `ofrenda` es repetible sin tope, +5%/nivel,
   costo ×3, `requiresAllMaxed`), `SAP_UNLOCKS` (umbrales 50/150/400/900/2000),
   `antRate()`, `SAP_RATE=0.2`, `slipChance(windy)` (8% base ×0.82^nudos,
-  piso 1%), `tick(dt, sapMul)`, `buy()`.
+  piso 1%), `tick(dt, sapMul, genAnts)` (negras solo en zen; savia siempre),
+  `buy()`.
+- `carrera.js` — modo carrera: `R_UPGRADES` (4, en coloradas), `timeTotal()`,
+  objeto `run` (active/left/peak/falling; `onPress()` arranca el reloj,
+  `update(dt)` lo corre y dispara la caída con `climb.startSlip(h,0,dur)`,
+  `finish()` SIEMPRE paga el botín) y `setMode()` (swap de alturas zen↔carrera
+  + `climb.resetForMode()`). Importa `state` y `climb` (sin ciclos).
 - `cosmetics.js` — el Ropero: `SKINS` (11 pieles gratis, `skinHex(id)` con
   fallback a ocre) y `COSMETICS` (compra única con hormigas, slots
   `sombrero`/`chiripa`; `buyCosmetic()` auto-equipa, `setEquipped()`,
@@ -156,7 +177,7 @@ ven la versión fresca. Los PNG de `icons/` se generaron una vez desde
 
 ## Git
 
-Branch de trabajo actual: `claude/character-customization-menu-fh1w2l` (los
+Branch de trabajo actual: `claude/zen-mode-time-limit-5uwtg3` (los
 branches de iteraciones anteriores ya se mergearon a `main`). Commits en
 español, descriptivos. No abrir PR salvo pedido explícito.
 

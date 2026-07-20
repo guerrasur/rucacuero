@@ -168,6 +168,16 @@ export class Scene {
     this.cameraH += (h - this.cameraH) * Math.min(1, dt * 4.5);
     this.shake = Math.max(0, this.shake - dt * 2.4);
 
+    // zoom de cámara (solo carrera): con la racha el salto crece sin tope y
+    // la vista se abre para que el aterrizaje proyectado entre en pantalla
+    let need = 1;
+    if (state.mode === 'carrera' && (climb.phase === 'charging' || climb.phase === 'leaping')) {
+      need = Math.max(1, Math.min(40, (climb.jumpMeters() * 1.5) / VISIBLE_M));
+    }
+    this.zoom = this.zoom || 1;
+    this.zoom += (need - this.zoom) * Math.min(1, dt * 3);
+    this.ppm = this.H / (VISIBLE_M * this.zoom);
+
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.fillStyle = C.noche;
     ctx.fillRect(0, 0, this.W, this.H);
@@ -244,7 +254,8 @@ export class Scene {
   drawBranch() {
     const { ctx } = this;
     const { top, bot } = this.branchSpan();
-    const step = 0.3;
+    // con zoom el tramo visible crece: el paso escala para no explotar en puntos
+    const step = Math.max(0.3, (top - bot) / 240);
     const L = [];
     const R = [];
     for (let hh = top; hh >= bot; hh -= step) {
@@ -534,8 +545,9 @@ export class Scene {
     // micro-zona perfecta: siempre visible y distinta — soltar ahí nunca
     // falla y sostiene la racha. Late con un pulso y bordes de hueso.
     const pulse = 0.7 + 0.3 * Math.sin(this.t * 6);
-    const py1 = this.yOf(kh + PERFECT_W);
-    const py2 = this.yOf(kh - PERFECT_W);
+    const pw = climb.perfectW();
+    const py1 = this.yOf(kh + pw);
+    const py2 = this.yOf(kh - pw);
     const gs = 54 + 10 * pulse;
     ctx.globalAlpha = 0.75 * a * pulse;
     ctx.drawImage(this.glowSprite, bx - gs / 2, this.yOf(kh) - gs / 2, gs, gs);
@@ -588,8 +600,9 @@ export class Scene {
     ctx.stroke();
 
     const gap = kh - state.height;
-    const pLo = Math.max(0, Math.min(1, (gap - w) / MAX_JUMP));
-    const pHi = Math.max(0, Math.min(1, (gap + w) / MAX_JUMP));
+    const jm = climb.jumpMeters();
+    const pLo = Math.max(0, Math.min(1, (gap - w) / jm));
+    const pHi = Math.max(0, Math.min(1, (gap + w) / jm));
     ctx.fillStyle = 'rgba(242,232,206,0.32)';
     ctx.fillRect(mtX - 4, mtTop + mtH * (1 - pHi), 8, mtH * (pHi - pLo));
 
