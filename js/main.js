@@ -47,6 +47,7 @@ window.addEventListener('pointerup', () => climb.release());
 window.addEventListener('pointercancel', () => climb.release());
 window.addEventListener('keydown', e => {
   if (e.code === 'Space' && !e.repeat) {
+    if (ui.roperoOpen()) return; // dentro del ropero no se salta
     // sin esto, Espacio "clickea" el último botón enfocado (mute/tienda)
     e.preventDefault();
     ui.hideHint();

@@ -435,7 +435,89 @@ body.charging #quest { opacity: .18; }
 .unlock p { font-size: 12px; color: rgba(242, 232, 206, .6); margin-top: 1px; line-height: 1.35; }
 .unlock .check { margin-left: auto; color: var(--savia); font-weight: 700; font-size: 18px; flex-shrink: 0; }
 
-/* ---------- ropero ---------- */
+/* ---------- ropero (menú de pantalla completa) ---------- */
+#ropero {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  background: linear-gradient(180deg, #0C120B, #131B12 30%);
+  display: flex;
+  flex-direction: column;
+  padding: calc(10px + env(safe-area-inset-top)) 18px 0;
+  opacity: 0;
+  transform: translateY(4%);
+  transition: opacity .28s, transform .28s cubic-bezier(.2, .9, .3, 1);
+}
+#ropero[hidden] { display: none; } /* el display:flex de arriba pisaría hidden */
+#ropero.open { opacity: 1; transform: none; }
+
+#ropero-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#ropero-top h2 {
+  flex: 1;
+  font-size: 27px;
+  color: var(--hueso);
+}
+#ropero-ants-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px 6px 8px;
+  background: rgba(42, 28, 20, .88);
+  border: 2px solid rgba(242, 232, 206, .14);
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--hueso);
+  font-variant-numeric: tabular-nums;
+}
+#ropero-ants-chip svg { width: 16px; height: 16px; }
+#ropero-cerrar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(42, 28, 20, .85);
+  border: 2px solid rgba(242, 232, 206, .25);
+  color: rgba(242, 232, 206, .85);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .12s;
+}
+#ropero-cerrar:active { transform: scale(.92); }
+#ropero-sub { margin-top: 6px; }
+
+#probador {
+  display: grid;
+  place-items: center;
+  padding: 8px 0 4px;
+}
+#probador-canvas { width: 158px; height: 196px; }
+
+#ropero-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+#ropero h2.sap-title { margin-top: 14px; font-size: 21px; color: var(--savia); }
+
+/* cartas de cosméticos: la carta entera es "probármelo" */
+.card.cos {
+  cursor: pointer;
+  border-radius: 14px;
+  padding: 10px 6px;
+}
+.card.cos .icono {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+}
+.card.cos.probando { background: rgba(240, 163, 42, .09); }
+.card.cos.puesta { background: rgba(127, 166, 54, .10); }
+
 #skin-grid {
   display: flex;
   flex-wrap: wrap;

@@ -65,19 +65,28 @@
     <div id="logros-list"></div>
   </section>
 
-  <section id="ropero" class="sheet" hidden aria-label="El Ropero">
-    <div class="sheet-handle"></div>
-    <h2 class="display">El Ropero</h2>
-    <p class="sheet-sub">Pilchas para el escalador. Las hormigas no juzgan.</p>
-    <h2 class="display sap-title">Piel</h2>
-    <p class="sheet-sub">Gratis y para siempre. Tocá para cambiarte.</p>
-    <div id="skin-grid"></div>
-    <h2 class="display sap-title">Sombreros</h2>
-    <p class="sheet-sub">Se compran una vez con hormigas y quedan tuyos.</p>
-    <div id="hat-list"></div>
-    <h2 class="display sap-title">Pañales</h2>
-    <p class="sheet-sub">Reemplazan el taparrabos de toda la vida. Elegancia.</p>
-    <div id="panal-list"></div>
+  <section id="ropero" hidden aria-label="El Ropero">
+    <header id="ropero-top">
+      <h2 class="display">El Ropero</h2>
+      <div id="ropero-ants-chip" title="Hormigas">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="17" rx="3.2" ry="2.5" fill="currentColor"/><circle cx="12" cy="11.8" r="1.9" fill="currentColor"/><circle cx="12" cy="7.6" r="2.5" fill="currentColor"/><path d="M10.7 5.9 9.2 3.8M13.3 5.9 14.8 3.8M9.9 12l-3-1M14.1 12l3-1M9.7 16l-2.9 1.5M14.3 16l2.9 1.5M10.2 18.8 8.4 21.2M13.8 18.8 15.6 21.2"/></g></svg>
+        <span id="ropero-ants">0</span>
+      </div>
+      <button id="ropero-cerrar" aria-label="Volver al juego">✕</button>
+    </header>
+    <p class="sheet-sub" id="ropero-sub">Tocá una carta para probártelo en el maniquí. Lo que equipes se ve en la rama.</p>
+    <div id="probador"><canvas id="probador-canvas"></canvas></div>
+    <div id="ropero-scroll">
+      <h2 class="display sap-title">Piel</h2>
+      <p class="sheet-sub">Gratis y para siempre. Tocá para cambiarte.</p>
+      <div id="skin-grid"></div>
+      <h2 class="display sap-title">Sombreros</h2>
+      <p class="sheet-sub">Se compran una vez con hormigas y quedan tuyos.</p>
+      <div id="hat-list"></div>
+      <h2 class="display sap-title">Pañales</h2>
+      <p class="sheet-sub">Reemplazan el taparrabos de toda la vida. Elegancia.</p>
+      <div id="panal-list"></div>
+    </div>
   </section>
 
   <div id="toasts"></div>
