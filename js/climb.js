@@ -23,7 +23,9 @@ const SLIP_TIME = 0.7;
 const RUN_STREAK_BASE = 1.25;
 const RUN_STREAK_ECO = 0.03; // extra por nivel de "eco del perfecto"
 const RUN_RESORTE = 0.08; // +salto base por nivel de "piernas de resorte"
-const MIN_TARGET_GAP = 1.8; // m: más cerca que esto no da el tiempo de reacción
+// El próximo salto nunca exige menos del 50% de la carga: un nudo más cerca
+// que esto se saltea (nada de perder la racha por un tronco mal posicionado).
+const MIN_TARGET_GAP = MAX_JUMP * 0.5;
 const RESIN_EVERY = 5; // saltos entre salvadas de resina
 
 function frac(x) {
