@@ -23,6 +23,7 @@ const SLIP_TIME = 0.7;
 const RUN_STREAK_BASE = 1.25;
 const RUN_STREAK_ECO = 0.03; // extra por nivel de "eco del perfecto"
 const RUN_RESORTE = 0.08; // +salto base por nivel de "piernas de resorte"
+const MIN_TARGET_GAP = 1.8; // m: más cerca que esto no da el tiempo de reacción
 const RESIN_EVERY = 5; // saltos entre salvadas de resina
 
 function frac(x) {
@@ -129,8 +130,8 @@ export const climb = {
   power: 0,
   t: 0,
   targetKnot: 1,
-  minKnot: 1,
   jumpStart: 0,
+  leapDur: LEAP_TIME,
   leapTo: 0,
   slipFrom: 0,
   slipTo: 0,
@@ -154,10 +155,11 @@ export const climb = {
     return e;
   },
 
-  // En carrera el salto crece: mejora "resorte" × racha de perfectos
-  // exponencial y SIN tope (1.25^racha, más fuerte con "eco"). En zen es 1:
-  // el modo de siempre queda idéntico.
-  jumpMul() {
+  // En carrera los metros GANADOS al agarrar se multiplican: mejora "resorte"
+  // × racha de perfectos exponencial y SIN tope (1.25^racha, más con "eco").
+  // La puntería queda siempre a escala base (el árbol no se mueve al apuntar):
+  // el salto simplemente te eleva más, pasando ramas enteras si la racha da.
+  gainMul() {
     if (state.mode !== 'carrera') return 1;
     const u = state.carrera.upgrades;
     return (
@@ -165,43 +167,28 @@ export const climb = {
       Math.pow(RUN_STREAK_BASE + RUN_STREAK_ECO * u.eco, this.perfectStreak)
     );
   },
-  jumpMeters() {
-    return MAX_JUMP * this.jumpMul();
-  },
   sweetW() {
-    // "abrigo de brisa": la ráfaga angosta menos la zona dulce.
-    // En carrera escala con el salto: el timing (en segundos) no se endurece
-    // aunque el salto sea gigante — la racha premia sin volverse imposible.
+    // "abrigo de brisa": la ráfaga angosta menos la zona dulce
     const windW = state.unlocks.includes('brisa') ? 0.38 : SWEET_WIND;
-    return (
-      (wind.windy() ? windW : SWEET_BASE) *
-      zoneAt(state.height).sweetMul *
-      this.mods.sweetMul() *
-      this.jumpMul()
-    );
-  },
-  perfectW() {
-    return PERFECT_W * this.jumpMul();
+    return (wind.windy() ? windW : SWEET_BASE) * zoneAt(state.height).sweetMul * this.mods.sweetMul();
   },
   landingH() {
-    return state.height + this.power * this.jumpMeters();
+    return state.height + this.power * MAX_JUMP;
   },
 
   press() {
     if (this.phase !== 'idle') return;
     this.phase = 'charging';
     this.power = 0;
-    this.minKnot = nextKnotIndex(state.height);
-    this.targetKnot = this.minKnot;
-  },
-
-  // carrera: con saltos grandes se apunta al nudo más cercano al aterrizaje
-  // proyectado (nunca menos que el próximo) — un salto puede comerse varios
-  retarget() {
-    const land = this.landingH();
-    const iA = Math.max(this.minKnot, knotIndexAbove(land));
-    let t = iA;
-    if (iA - 1 >= this.minKnot && land - knotHeight(iA - 1) < knotHeight(iA) - land) t = iA - 1;
+    // si el próximo nudo quedó pegado (p. ej. tras un resbalón) no hay tiempo
+    // de reaccionar: se apunta directo al siguiente, siempre que sea alcanzable
+    let t = nextKnotIndex(state.height);
+    if (
+      knotHeight(t) - state.height < MIN_TARGET_GAP &&
+      knotHeight(t + 1) - state.height <= MAX_JUMP - 0.3
+    ) {
+      t += 1;
+    }
     this.targetKnot = t;
   },
 
@@ -222,14 +209,13 @@ export const climb = {
     } else {
       this.result = 'grab';
       this.leapTo = kH;
-      this.perfect = Math.abs(land - kH) <= this.perfectW();
+      this.perfect = Math.abs(land - kH) <= PERFECT_W;
       // racha de perfectos. El perfecto es infalible, así que se resuelve acá
       // y el vuelo anima suave hasta la altura final.
       if (this.perfect) {
         this.perfectStreak += 1;
         if (state.mode === 'carrera') {
-          // carrera: el premio es el PRÓXIMO salto, exponencialmente más
-          // alto y sin tope; el badge ×mult muestra ese multiplicador
+          // el badge ×mult muestra el multiplicador de la racha
           this.streakMult = Math.pow(
             RUN_STREAK_BASE + RUN_STREAK_ECO * state.carrera.upgrades.eco,
             this.perfectStreak
@@ -243,7 +229,14 @@ export const climb = {
       } else {
         this.breakStreak();
       }
+      // carrera: los metros ganados se multiplican — no hace falta caer en la
+      // rama siguiente, el salto te eleva de largo pasando las que haga falta
+      if (state.mode === 'carrera') {
+        this.leapTo = this.jumpStart + (kH - this.jumpStart) * this.gainMul();
+      }
     }
+    // los vuelos gigantes de la racha se toman un poco más de tiempo en el aire
+    this.leapDur = LEAP_TIME * (1 + Math.min(2, Math.abs(this.leapTo - this.jumpStart) / 25));
     this.phase = 'leaping';
   },
 
@@ -298,6 +291,7 @@ export const climb = {
       this.targetKnot = nextKnotIndex(state.height);
       this.leapTo = knotHeight(this.targetKnot);
       this.t = 0;
+      this.leapDur = LEAP_TIME; // el encadenado es nudo a nudo, vuelo corto
       this.result = 'grab';
       this.chainSafe = true;
       return; // sigue en 'leaping'
@@ -326,17 +320,15 @@ export const climb = {
     this.breakStreak();
     this.lastZone = null;
     this.chargeAlpha = 0;
-    this.minKnot = nextKnotIndex(state.height);
-    this.targetKnot = this.minKnot;
+    this.targetKnot = nextKnotIndex(state.height);
   },
 
   update(dt) {
     if (!this.lastZone) this.lastZone = zoneAt(state.height);
     if (this.phase === 'charging') {
       this.power = Math.min(1, this.power + CHARGE_SPEED * dt);
-      if (state.mode === 'carrera') this.retarget();
     } else if (this.phase === 'leaping') {
-      this.t += dt / LEAP_TIME;
+      this.t += dt / (this.leapDur || LEAP_TIME);
       if (this.t >= 1) this.arrive();
     } else if (this.phase === 'slipping') {
       this.t += dt / (this.slipDur || SLIP_TIME);

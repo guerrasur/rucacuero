@@ -73,6 +73,8 @@ export const run = {
   left: 0,
   peak: 0,
   falling: false,
+  // animación de suelo tras la caída: tumbado contra la tierra y levantarse
+  ground: null, // { phase: 'tumbado' | 'levanta', t, dur }
   queue: [],
 
   emit(type, data) {
@@ -92,9 +94,9 @@ export const run = {
     this.emit('run-start', { total: this.left });
   },
 
-  // durante la caída no se puede saltar (main bloquea el input con esto)
+  // durante la caída y el tumbado no se puede saltar (main bloquea el input)
   blocked() {
-    return this.falling;
+    return this.falling || !!this.ground;
   },
 
   reward() {
@@ -102,7 +104,16 @@ export const run = {
   },
 
   update(dt) {
-    if (state.mode !== 'carrera' || !this.active) return;
+    if (state.mode !== 'carrera') return;
+    // el tumbado y el levantarse corren aunque la run ya haya pagado
+    if (this.ground) {
+      this.ground.t -= dt;
+      if (this.ground.t <= 0) {
+        this.ground =
+          this.ground.phase === 'tumbado' ? { phase: 'levanta', t: 0.45, dur: 0.45 } : null;
+      }
+    }
+    if (!this.active) return;
     this.peak = Math.max(this.peak, state.height);
     if (!this.falling) {
       this.left = Math.max(0, this.left - dt);
@@ -122,8 +133,9 @@ export const run = {
         }
       }
     } else if (climb.phase === 'idle') {
-      // tocó la raíz: se acredita el botín y queda lista la próxima run
+      // tocó la tierra: se acredita el botín y queda tumbado un momento
       this.finish();
+      this.ground = { phase: 'tumbado', t: 1.1, dur: 1.1 };
     }
   },
 
@@ -147,6 +159,7 @@ export function setMode(m) {
   if (m === state.mode) return;
   if (state.mode === 'carrera') {
     run.finish(); // si había run en curso, paga igual: nada se pierde
+    run.ground = null; // el tumbado no viaja al zen
     state.carrera.best = Math.max(state.carrera.best, state.bestHeight);
   } else {
     state.zen.height = state.height;

@@ -313,22 +313,32 @@ body.charging #quest { opacity: .18; }
 #shop-btn:active, #ropero-btn:active { transform: scale(.92); }
 #shop-btn svg, #ropero-btn svg { width: 30px; height: 30px; }
 
-/* botón de modo: alterna carrera ↔ zen (muestra el modo al que vas) */
+/* botón de modo: el yin-yang. Activo en carrera (te lleva al zen);
+   en zen es el mismo botón pero desactivado (tocarlo te devuelve). */
 #modo-btn {
   position: absolute;
   left: 14px;
   bottom: calc(88px + env(safe-area-inset-bottom));
-  padding: 9px 16px;
-  border-radius: 999px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   background: rgba(42, 28, 20, .85);
   border: 2px solid rgba(242, 232, 206, .25);
   color: rgba(242, 232, 206, .85);
-  font-family: var(--display);
-  font-size: 14px;
+  display: grid;
+  place-items: center;
   cursor: pointer;
   z-index: 3;
 }
+#modo-btn svg { width: 26px; height: 26px; }
 #modo-btn:active { transform: scale(.94); }
+body:not(.mode-carrera) #modo-btn {
+  opacity: .38;
+  border-color: rgba(242, 232, 206, .15);
+}
+
+/* en carrera la tienda muestra la hormiga colorada */
+body.mode-carrera #shop-btn { color: var(--ocre); }
 
 /* en carrera la moneda es la hormiga colorada (ocre, extra de paleta);
    el chip de misión es cosa del zen */
