@@ -54,12 +54,17 @@ export function init() {
     iconMuted: $('icon-muted'),
   };
 
-  els.shopBtn.addEventListener('click', () => toggleShop(!shopOpen));
+  // blur tras cada click: un botón enfocado se re-activa con Espacio (salto)
+  els.shopBtn.addEventListener('click', () => {
+    toggleShop(!shopOpen);
+    els.shopBtn.blur();
+  });
   els.scrim.addEventListener('click', () => toggleShop(false));
   els.muteBtn.addEventListener('click', () => {
     audio.ensure();
     audio.setMuted(!audio.isMuted());
     syncMuteIcon();
+    els.muteBtn.blur();
   });
   syncMuteIcon();
   buildShop();

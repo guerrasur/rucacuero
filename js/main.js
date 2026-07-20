@@ -45,6 +45,8 @@ window.addEventListener('pointerup', () => climb.release());
 window.addEventListener('pointercancel', () => climb.release());
 window.addEventListener('keydown', e => {
   if (e.code === 'Space' && !e.repeat) {
+    // sin esto, Espacio "clickea" el último botón enfocado (mute/tienda)
+    e.preventDefault();
     ui.hideHint();
     audio.ensure();
     climb.press();
