@@ -187,7 +187,7 @@ export const climb = {
     let t = nextKnotIndex(state.height);
     if (
       knotHeight(t) - state.height < MIN_TARGET_GAP &&
-      knotHeight(t + 1) - state.height <= MAX_JUMP - 0.3
+      knotHeight(t + 1) - state.height <= MAX_JUMP + 0.1
     ) {
       t += 1;
     }
@@ -231,10 +231,15 @@ export const climb = {
       } else {
         this.breakStreak();
       }
-      // carrera: los metros ganados se multiplican — no hace falta caer en la
-      // rama siguiente, el salto te eleva de largo pasando las que haga falta
+      // carrera: los metros ganados se multiplican — el salto te eleva de
+      // largo pasando ramas enteras. El aterrizaje se ancla SIEMPRE al nudo
+      // más cercano: caer flotando entre ramas dejaba al próximo nudo a
+      // centímetros y regalaba rachas perdidas (el salteo no alcanzaba).
       if (state.mode === 'carrera') {
-        this.leapTo = this.jumpStart + (kH - this.jumpStart) * this.gainMul();
+        const raw = this.jumpStart + (kH - this.jumpStart) * this.gainMul();
+        const above = knotIndexAbove(raw);
+        const belowH = knotHeight(above - 1);
+        this.leapTo = knotHeight(above) - raw < raw - belowH ? knotHeight(above) : belowH;
       }
     }
     // los vuelos gigantes de la racha se toman un poco más de tiempo en el aire

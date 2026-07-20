@@ -14,7 +14,8 @@ Formato de números: `toLocaleString('es-AR')` (coma decimal).
   escala base contra el próximo nudo; los perfectos encadenados multiplican los
   **metros ganados al agarrar**, exponencial y sin tope
   (`gainMul = resorte × 1,25^racha`): el salto te eleva de largo pasando ramas
-  enteras. La escala del render es fija (NADA de zoom — estiraba el árbol y
+  enteras, y el aterrizaje se ancla SIEMPRE al nudo más cercano (caer entre
+  ramas dejaba nudos a centímetros y regalaba rachas perdidas). La escala del render es fija (NADA de zoom — estiraba el árbol y
   movía el objetivo); en vuelos/caídas rápidas la cámara se engancha al
   escalador (clamp ±2,5 m sobre el lerp). Al agotarse el tiempo cae a la tierra (queda tumbado ~1,1 s y se
   levanta, `run.ground`) y la altura pico paga **hormigas coloradas** (HUD en
@@ -98,8 +99,9 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   ambos, cualquier soltada no perfecta la corta (`breakStreak()`); badge
   `#mult` en el HUD con pop por perfecto. `MIN_TARGET_GAP = MAX_JUMP*0.5` (3 m):
   si el próximo nudo exige menos del 50% de la carga, `press()` apunta directo
-  al siguiente cuando es alcanzable — nunca un objetivo sin tiempo de
-  reacción ni rachas perdidas por un tronco mal posicionado. Los textos
+  al siguiente cuando entra en el salto máximo (`MAX_JUMP + 0.1`) — nunca un
+  objetivo sin tiempo de reacción ni rachas perdidas por un tronco mal
+  posicionado. Los textos
   flotantes (`#feedback`, `#zone-banner`) se esfuman durante la carga vía
   `filter` (sus animaciones pisan `opacity`). `leapDur` escala con la distancia del vuelo. Pérdidas: corto −1.2, pasado −3.0,
   mala suerte −2.2 (clamp a 0). `climb.mods` = hooks inyectados por main
