@@ -16,6 +16,8 @@ export const state = {
   // contadores de toda la vida (solo suben): alimentan los logros permanentes
   life: { metros: 0, perfectos: 0, chucaos: 0, lluvias: 0, gastadas: 0, enjambres: 0 },
   logros: [], // ids de logros ya cumplidos
+  // ropero: cosméticos comprados y qué lleva puesto (null = default)
+  cosmetics: { owned: [], sombrero: null, chiripa: null, piel: 'ocre' },
 };
 
 function num(x) {
@@ -58,6 +60,11 @@ export function load() {
     state.life[k] = num(lf[k]);
   }
   state.logros = Array.isArray(data.logros) ? data.logros.filter(s => typeof s === 'string') : [];
+  const cos = data.cosmetics || {};
+  state.cosmetics.owned = Array.isArray(cos.owned) ? cos.owned.filter(s => typeof s === 'string') : [];
+  state.cosmetics.sombrero = typeof cos.sombrero === 'string' ? cos.sombrero : null;
+  state.cosmetics.chiripa = typeof cos.chiripa === 'string' ? cos.chiripa : null;
+  state.cosmetics.piel = typeof cos.piel === 'string' ? cos.piel : 'ocre';
 }
 
 export function save() {

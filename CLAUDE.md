@@ -42,13 +42,20 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   `{ v:1, ants, sap, height, bestHeight,
   upgrades:{feromonas,reina,nudos,mielada,ofrenda}, unlocks:[ids],
   quest:{id,target,progress}|null, questsDone,
-  life:{metros,perfectos,chucaos,lluvias,gastadas,enjambres}, logros:[ids] }`.
+  life:{metros,perfectos,chucaos,lluvias,gastadas,enjambres}, logros:[ids],
+  cosmetics:{owned:[ids], sombrero:id|null, chiripa:id|null, piel:id} }`.
   Migración aditiva sin bump de versión: campos faltantes → defaults.
   Clave aparte: `rucacuero_muted` ('1'/'0').
 - `economy.js` — `UPGRADES` (5; `ofrenda` es repetible sin tope, +5%/nivel,
   costo ×3, `requiresAllMaxed`), `SAP_UNLOCKS` (umbrales 50/150/400/900/2000),
   `antRate()`, `SAP_RATE=0.2`, `slipChance(windy)` (8% base ×0.82^nudos,
   piso 1%), `tick(dt, sapMul)`, `buy()`.
+- `cosmetics.js` — el Ropero: `SKINS` (11 pieles gratis, `skinHex(id)` con
+  fallback a ocre) y `COSMETICS` (compra única con hormigas, slots
+  `sombrero`/`chiripa`; `buyCosmetic()` auto-equipa, `setEquipped()`,
+  `sanitize()` valida el save — main la llama tras `load()`). Solo importa
+  `state.js` (sin ciclos). Los sombreros/pañales se dibujan en `scene.js`
+  (`drawHat`, bloque chiripa en `drawClimber`); el chucao queda siempre ocre.
 - `climb.js` — el corazón: nudos deterministas (`knotHeight(i)` memoizado,
   `knotIndexAbove(h)` búsqueda binaria), `ZONES` (7 zonas: 0/30/70/120/180/
   260/360 que cambian verde/gapMul/savia/viento), objeto `wind`
@@ -88,7 +95,9 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   (Path2D), niebla (bandas de `fogSprite` + velo), lluvia, viñeta.
   `scene.birdPos` y `scene.swarmPos` los usa main para el hit-test del tap.
 - `ui.js` — HUD (escrituras DOM **solo cuando cambia el texto** — mantener),
-  tienda bottom-sheet (mejoras + savia + logros), toasts, `showBanner()`,
+  dos bottom-sheets via `openSheet('shop'|'ropero'|null)` (una sola abierta,
+  scrim compartido): tienda (mejoras + savia + logros) y ropero (swatches de
+  piel + cards comprar/ponerse/sacarse), toasts, `showBanner()`,
   `flash()`, chip de misión (abajo, entre tienda y mute, `pointer-events:
   none` — el tap pasa al canvas), clase `body.charging` que atenúa
   HUD/toasts/chip durante la carga (la zona de puntería queda limpia), mute
@@ -142,9 +151,9 @@ ven la versión fresca. Los PNG de `icons/` se generaron una vez desde
 
 ## Git
 
-Branch de trabajo actual: `claude/game-improvements-hmaebk` (los branches de
-iteraciones anteriores ya se mergearon a `main`). Commits en español,
-descriptivos. No abrir PR salvo pedido explícito.
+Branch de trabajo actual: `claude/character-customization-menu-fh1w2l` (los
+branches de iteraciones anteriores ya se mergearon a `main`). Commits en
+español, descriptivos. No abrir PR salvo pedido explícito.
 
 ## Ideas pendientes (aprobadas a grandes rasgos, no comprometidas)
 

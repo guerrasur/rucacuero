@@ -1,5 +1,5 @@
-// HUD, tienda (hormiguero), toasts de savia y feedback flotante.
-import { state } from './state.js';
+// HUD, tienda (hormiguero), ropero, toasts de savia y feedback flotante.
+import { state, save } from './state.js';
 import {
   UPGRADES,
   SAP_UNLOCKS,
@@ -14,15 +14,18 @@ import { SAP_RATE, antRate as antRateFn, slipChance } from './economy.js';
 import * as audio from './audio.js';
 import * as quests from './quests.js';
 import * as logros from './logros.js';
+import * as cosmetics from './cosmetics.js';
 
 const $ = id => document.getElementById(id);
 const ANT_SVG =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="17" rx="3.2" ry="2.5" fill="currentColor"/><circle cx="12" cy="11.8" r="1.9" fill="currentColor"/><circle cx="12" cy="7.6" r="2.5" fill="currentColor"/><path d="M10.7 5.9 9.2 3.8M13.3 5.9 14.8 3.8M9.9 12l-3-1M14.1 12l3-1M9.7 16l-2.9 1.5M14.3 16l2.9 1.5M10.2 18.8 8.4 21.2M13.8 18.8 15.6 21.2"/></g></svg>';
 
 let els = {};
-let shopOpen = false;
+let activeSheet = null; // 'shop' | 'ropero' | null (solo una abierta a la vez)
 let lastShopRefresh = 0;
+let lastRoperoRefresh = 0;
 const logroCache = {}; // último texto escrito por fila de logro (disciplina DOM)
+const roperoCache = {}; // último estado escrito por botón de cosmético
 
 const fmtInt = n => Math.floor(n).toLocaleString('es-AR');
 const fmtH = h =>
@@ -52,14 +55,23 @@ export function init() {
     muteBtn: $('mute-btn'),
     iconSound: $('icon-sound'),
     iconMuted: $('icon-muted'),
+    ropero: $('ropero'),
+    roperoBtn: $('ropero-btn'),
+    skinGrid: $('skin-grid'),
+    hatList: $('hat-list'),
+    panalList: $('panal-list'),
   };
 
   // blur tras cada click: un botón enfocado se re-activa con Espacio (salto)
   els.shopBtn.addEventListener('click', () => {
-    toggleShop(!shopOpen);
+    openSheet(activeSheet === 'shop' ? null : 'shop');
     els.shopBtn.blur();
   });
-  els.scrim.addEventListener('click', () => toggleShop(false));
+  els.roperoBtn.addEventListener('click', () => {
+    openSheet(activeSheet === 'ropero' ? null : 'ropero');
+    els.roperoBtn.blur();
+  });
+  els.scrim.addEventListener('click', () => openSheet(null));
   els.muteBtn.addEventListener('click', () => {
     audio.ensure();
     audio.setMuted(!audio.isMuted());
@@ -68,6 +80,7 @@ export function init() {
   });
   syncMuteIcon();
   buildShop();
+  buildRopero();
 }
 
 function syncMuteIcon() {
@@ -78,22 +91,24 @@ function syncMuteIcon() {
   els.muteBtn.setAttribute('aria-label', m ? 'Activar sonido' : 'Silenciar sonido');
 }
 
-function toggleShop(open) {
-  shopOpen = open;
-  els.shop.hidden = false;
-  els.scrim.hidden = false;
-  requestAnimationFrame(() => {
-    els.shop.classList.toggle('open', open);
-    els.scrim.classList.toggle('open', open);
-  });
-  if (!open) {
-    setTimeout(() => {
-      if (!shopOpen) {
-        els.shop.hidden = true;
-        els.scrim.hidden = true;
-      }
-    }, 320);
+// abre una sheet ('shop' | 'ropero') o cierra todo (null); el scrim es compartido
+function openSheet(name) {
+  activeSheet = name;
+  const sheets = { shop: els.shop, ropero: els.ropero };
+  if (name) {
+    sheets[name].hidden = false;
+    els.scrim.hidden = false;
   }
+  requestAnimationFrame(() => {
+    for (const key of Object.keys(sheets)) sheets[key].classList.toggle('open', key === name);
+    els.scrim.classList.toggle('open', name !== null);
+  });
+  setTimeout(() => {
+    for (const key of Object.keys(sheets)) {
+      if (activeSheet !== key) sheets[key].hidden = true;
+    }
+    if (activeSheet === null) els.scrim.hidden = true;
+  }, 320);
 }
 
 function buildShop() {
@@ -143,6 +158,87 @@ function buildShop() {
     els.logrosList.appendChild(row);
   }
   refreshShop(true);
+}
+
+function buildRopero() {
+  els.skinGrid.innerHTML = '';
+  for (const s of cosmetics.SKINS) {
+    const b = document.createElement('button');
+    b.className = 'swatch';
+    b.dataset.id = s.id;
+    b.style.setProperty('--sw', s.hex);
+    b.setAttribute('aria-label', `Piel ${s.name}`);
+    b.addEventListener('click', () => {
+      state.cosmetics.piel = s.id;
+      save();
+      refreshRopero(true);
+    });
+    els.skinGrid.appendChild(b);
+  }
+  buildCosmeticList(els.hatList, 'sombrero');
+  buildCosmeticList(els.panalList, 'chiripa');
+  refreshRopero(true);
+}
+
+function buildCosmeticList(listEl, slot) {
+  listEl.innerHTML = '';
+  for (const def of cosmetics.COSMETICS) {
+    if (def.slot !== slot) continue;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = def.id;
+    card.innerHTML =
+      `<div class="card-info"><h3>${def.name}</h3><p>${def.desc}</p></div>` +
+      `<button class="buy"></button>`;
+    card.querySelector('button').addEventListener('click', () => {
+      if (!cosmetics.owned(def.id)) {
+        if (cosmetics.buyCosmetic(def)) {
+          audio.ensure();
+          audio.buy();
+          quests.note('buy');
+          logros.bump('gastadas', def.cost);
+          refreshRopero(true);
+        }
+      } else {
+        const puesto = state.cosmetics[def.slot] === def.id;
+        cosmetics.setEquipped(def.slot, puesto ? null : def.id);
+        refreshRopero(true);
+      }
+    });
+    listEl.appendChild(card);
+  }
+}
+
+function refreshRopero(force) {
+  const now = performance.now();
+  if (!force && now - lastRoperoRefresh < 250) return;
+  lastRoperoRefresh = now;
+
+  for (const b of els.skinGrid.children) {
+    b.classList.toggle('sel', b.dataset.id === state.cosmetics.piel);
+  }
+
+  for (const listEl of [els.hatList, els.panalList]) {
+    for (const card of listEl.children) {
+      const def = cosmetics.COSMETICS.find(d => d.id === card.dataset.id);
+      // estado del botón: comprar (con/sin fondos) / ponerse / sacarse
+      let mode;
+      if (!cosmetics.owned(def.id)) mode = cosmetics.canBuyCosmetic(def) ? 'comprar' : 'sin-fondos';
+      else mode = state.cosmetics[def.slot] === def.id ? 'puesto' : 'guardado';
+      if (roperoCache[def.id] === mode) continue;
+      roperoCache[def.id] = mode;
+      const btn = card.querySelector('button');
+      if (mode === 'comprar' || mode === 'sin-fondos') {
+        btn.className = 'buy';
+        btn.innerHTML = `${ANT_SVG}<span class="cost">${fmtInt(def.cost)}</span>`;
+        btn.disabled = mode === 'sin-fondos';
+      } else {
+        btn.className = mode === 'puesto' ? 'equip on' : 'equip';
+        btn.textContent = mode === 'puesto' ? 'Sacarse' : 'Ponerse';
+        btn.disabled = false;
+      }
+    }
+  }
 }
 
 function refreshShop(force) {
@@ -331,5 +427,6 @@ export function update() {
     }
   }
 
-  if (shopOpen) refreshShop(false);
+  if (activeSheet === 'shop') refreshShop(false);
+  else if (activeSheet === 'ropero') refreshRopero(false);
 }

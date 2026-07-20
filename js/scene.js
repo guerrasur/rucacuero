@@ -3,6 +3,7 @@
 import { state } from './state.js';
 import { climb, wind, knotHeight, knotHasSap, knotIndexAbove, hash, MAX_JUMP, PERFECT_W, ZONES } from './climb.js';
 import { branchEvents } from './events.js';
+import { skinHex } from './cosmetics.js';
 
 const C = {
   noche: '#131B12',
@@ -619,13 +620,14 @@ export class Scene {
     const { crouch, reach, flail } = pose;
     const hipY = 0;
     const shY = hipY - torso * (1 - crouch * 0.3);
+    const piel = skinHex(state.cosmetics.piel);
 
     // piernas
     const footY = hipY + 26 * (1 - crouch * 0.55);
     const kneeX = 10 + crouch * 12;
     const kneeY = hipY + 12 * (1 - crouch * 0.3);
-    this.limb(-hipW * 0.6, hipY + 2, -kneeX, kneeY, -6 - crouch * 8, footY, 9);
-    this.limb(hipW * 0.6, hipY + 2, kneeX, kneeY, 6 + crouch * 8, footY, 9);
+    this.limb(-hipW * 0.6, hipY + 2, -kneeX, kneeY, -6 - crouch * 8, footY, 9, piel);
+    this.limb(hipW * 0.6, hipY + 2, kneeX, kneeY, 6 + crouch * 8, footY, 9, piel);
 
     // torso (vista de espaldas)
     const tp = new Path2D();
@@ -634,31 +636,58 @@ export class Scene {
     tp.lineTo(hipW, hipY + 4);
     tp.quadraticCurveTo(shW + 1.5, (shY + hipY) / 2, shW, shY);
     tp.quadraticCurveTo(0, shY - 5, -shW, shY);
-    ctx.fillStyle = C.ocre;
+    ctx.fillStyle = piel;
     ctx.fill(tp);
     ctx.lineWidth = 4;
     ctx.strokeStyle = C.tinta;
     ctx.lineJoin = 'round';
     ctx.stroke(tp);
 
-    // taparrabos hueso
-    ctx.beginPath();
-    ctx.roundRect(-hipW - 3, hipY - 5, (hipW + 3) * 2, 12, 5);
-    ctx.fillStyle = C.hueso;
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = C.tinta;
-    ctx.stroke();
+    if (state.cosmetics.chiripa === 'creci') {
+      // calzones Creci: rosa apagado con vivos hueso
+      ctx.beginPath();
+      ctx.roundRect(-hipW - 3, hipY - 5, (hipW + 3) * 2, 13, 5);
+      ctx.fillStyle = '#C77A93';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = C.tinta;
+      ctx.stroke();
+      ctx.strokeStyle = C.hueso;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-hipW - 1.5, hipY - 2.6);
+      ctx.lineTo(hipW + 1.5, hipY - 2.6);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(-hipW + 1, hipY + 10, 4, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(hipW - 1, hipY + 10, 4, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+    } else {
+      // taparrabos hueso
+      ctx.beginPath();
+      ctx.roundRect(-hipW - 3, hipY - 5, (hipW + 3) * 2, 12, 5);
+      ctx.fillStyle = C.hueso;
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = C.tinta;
+      ctx.stroke();
+    }
 
     // cabeza
     const headR = 8.5;
+    const headY = shY - headR - 2;
     ctx.beginPath();
-    ctx.arc(0, shY - headR - 2, headR, 0, Math.PI * 2);
-    ctx.fillStyle = C.ocre;
+    ctx.arc(0, headY, headR, 0, Math.PI * 2);
+    ctx.fillStyle = piel;
     ctx.fill();
     ctx.lineWidth = 4;
     ctx.strokeStyle = C.tinta;
     ctx.stroke();
+
+    // sombrero (antes de los brazos: las manos que agarran quedan encima)
+    if (state.cosmetics.sombrero) this.drawHat(state.cosmetics.sombrero, headY, headR);
 
     // brazos por encima (agarrando la rama)
     const wob = flail ? Math.sin(this.t * 25) * 5 : 0;
@@ -666,13 +695,149 @@ export class Scene {
     const handX = 12 + reach * 3 + flail * 13;
     const elbX = 15 + flail * 5;
     const elbY = shY - 8 - reach * 6;
-    this.limb(-shW, shY + 2, -elbX, elbY, -handX, handY + wob, 8);
-    this.limb(shW, shY + 2, elbX, elbY, handX, handY - wob, 8);
+    this.limb(-shW, shY + 2, -elbX, elbY, -handX, handY + wob, 8, piel);
+    this.limb(shW, shY + 2, elbX, elbY, handX, handY - wob, 8, piel);
 
     ctx.restore();
   }
 
-  limb(x1, y1, x2, y2, x3, y3, wd) {
+  // cosméticos de cabeza, en coordenadas locales del escalador (hy = centro
+  // de la cabeza, sigue la pose y el sway solos). Formas planas, sin gradientes.
+  drawHat(id, hy, headR) {
+    const { ctx } = this;
+    ctx.lineJoin = 'round';
+    if (id === 'velece') {
+      // cono de obra: base + trapecio naranja con bandas hueso clipeadas
+      const y0 = hy - headR + 3;
+      ctx.beginPath();
+      ctx.roundRect(-10.5, y0 - 2, 21, 4.5, 2);
+      ctx.fillStyle = '#C0622F';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = C.tinta;
+      ctx.stroke();
+      const cone = new Path2D();
+      cone.moveTo(-8, y0);
+      cone.lineTo(-1.5, y0 - 17);
+      cone.lineTo(1.5, y0 - 17);
+      cone.lineTo(8, y0);
+      cone.closePath();
+      ctx.fillStyle = '#C0622F';
+      ctx.fill(cone);
+      ctx.save();
+      ctx.clip(cone);
+      ctx.fillStyle = C.hueso;
+      ctx.fillRect(-9, y0 - 8.5, 18, 3.2);
+      ctx.fillRect(-9, y0 - 13.5, 18, 3);
+      ctx.restore();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = C.tinta;
+      ctx.stroke(cone);
+    } else if (id === 'cassco') {
+      // casco de bici: domo verde lima con ventilaciones tinta en abanico
+      const y0 = hy - headR + 4;
+      ctx.beginPath();
+      ctx.ellipse(0, y0, headR + 3, headR * 0.95, 0, Math.PI, Math.PI * 2);
+      ctx.closePath();
+      ctx.fillStyle = '#A8B843';
+      ctx.fill();
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = C.tinta;
+      ctx.stroke();
+      ctx.fillStyle = C.tinta;
+      for (const [dx, rot] of [[-5.5, -0.45], [0, 0], [5.5, 0.45]]) {
+        ctx.save();
+        ctx.translate(dx, y0 - headR * 0.62 + Math.abs(dx) * 0.28);
+        ctx.rotate(rot);
+        ctx.beginPath();
+        ctx.roundRect(-1.25, -3.2, 2.5, 6.4, 1.2);
+        ctx.fill();
+        ctx.restore();
+      }
+    } else if (id === 'pretencio') {
+      // boina: elipse chata ladeada, filo de luz y rabito (más clara que la
+      // tinta del contorno para que no se funda)
+      const by = hy - headR + 1;
+      ctx.beginPath();
+      ctx.ellipse(0.8, by, headR + 3.5, 4.8, -0.12, 0, Math.PI * 2);
+      ctx.fillStyle = '#3A3140';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = C.tinta;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(0.8, by, headR + 1.6, 3, -0.12, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(242, 232, 206, .3)';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0.8, by - 6.2, 1.7, 0, Math.PI * 2);
+      ctx.fillStyle = C.tinta;
+      ctx.fill();
+    } else if (id === 'biuti') {
+      // la cara nueva: una cara de papel pegada en la nuca (el escalador
+      // sigue de espaldas, pero esta cara mira al jugador). El contorno de
+      // la cabeza (lw 4) come hasta r≈6.5: los rasgos deben caber ahí.
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, hy, headR, 0, Math.PI * 2);
+      ctx.clip();
+      // base papel, más clara que cualquier piel
+      ctx.fillStyle = '#EFDBB6';
+      ctx.fillRect(-headR, hy - headR, headR * 2, headR * 2);
+      // ojos grandes asimétricos
+      ctx.strokeStyle = C.tinta;
+      ctx.lineWidth = 1.1;
+      ctx.fillStyle = C.hueso;
+      ctx.beginPath();
+      ctx.ellipse(-2.6, hy - 0.6, 2.1, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(2.7, hy - 0.8, 1.8, 2.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // pupilas apenas bizcas
+      ctx.fillStyle = C.tinta;
+      ctx.beginPath();
+      ctx.arc(-2, hy - 0.4, 1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(2.2, hy - 0.7, 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      // cejas gruesas, ángulos dispares
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 1.7;
+      ctx.beginPath();
+      ctx.moveTo(-4.4, hy - 3.4);
+      ctx.lineTo(-1, hy - 4.4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(1.2, hy - 4);
+      ctx.lineTo(4.2, hy - 3.7);
+      ctx.stroke();
+      // labios rojos desproporcionados
+      ctx.fillStyle = '#B4453C';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.roundRect(-2.9, hy + 2.2, 5.8, 1.9, 1);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.roundRect(-2.4, hy + 3.9, 4.8, 2.1, 1.1);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+      // re-contorno de la cabeza sobre el clip
+      ctx.beginPath();
+      ctx.arc(0, hy, headR, 0, Math.PI * 2);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = C.tinta;
+      ctx.stroke();
+    }
+  }
+
+  limb(x1, y1, x2, y2, x3, y3, wd, color = C.ocre) {
     const { ctx } = this;
     const p = new Path2D();
     p.moveTo(x1, y1);
@@ -682,7 +847,7 @@ export class Scene {
     ctx.strokeStyle = C.tinta;
     ctx.lineWidth = wd + 4.5;
     ctx.stroke(p);
-    ctx.strokeStyle = C.ocre;
+    ctx.strokeStyle = color;
     ctx.lineWidth = wd;
     ctx.stroke(p);
   }
