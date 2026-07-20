@@ -200,6 +200,13 @@ body.charging #hud,
 body.charging #toasts,
 body.charging #quest { opacity: .18; }
 
+/* los textos flotantes (¡Perfecto!, carteles de zona) viven en la banda de
+   puntería: durante la carga se esfuman para no tapar el objetivo.
+   filter (no opacity): sus animaciones .show pisan la propiedad opacity */
+#feedback, #zone-banner { transition: filter .25s; }
+body.charging #feedback,
+body.charging #zone-banner { filter: opacity(.12); }
+
 /* ---------- feedback flotante ---------- */
 #feedback {
   position: absolute;

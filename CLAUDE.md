@@ -96,10 +96,12 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   perfectos: en zen `STREAK_MULTS=[1,1.1,1.2,1.3,1.5,1.7,2]` (impulso extra en
   `release()`, solo suma); en carrera `gainMul()` exponencial sin tope; en
   ambos, cualquier soltada no perfecta la corta (`breakStreak()`); badge
-  `#mult` en el HUD con pop por perfecto. `MIN_TARGET_GAP=1.8`: si el próximo
-  nudo quedó a menos de eso (p. ej. tras un resbalón) `press()` apunta directo
+  `#mult` en el HUD con pop por perfecto. `MIN_TARGET_GAP = MAX_JUMP*0.5` (3 m):
+  si el próximo nudo exige menos del 50% de la carga, `press()` apunta directo
   al siguiente cuando es alcanzable — nunca un objetivo sin tiempo de
-  reacción. `leapDur` escala con la distancia del vuelo. Pérdidas: corto −1.2, pasado −3.0,
+  reacción ni rachas perdidas por un tronco mal posicionado. Los textos
+  flotantes (`#feedback`, `#zone-banner`) se esfuman durante la carga vía
+  `filter` (sus animaciones pisan `opacity`). `leapDur` escala con la distancia del vuelo. Pérdidas: corto −1.2, pasado −3.0,
   mala suerte −2.2 (clamp a 0). `climb.mods` = hooks inyectados por main
   (lluvia/niebla: slipBonus/sweetMul). Eventos via `emit()`/`takeEvents()`.
 - `events.js` — `branchEvents`, un evento a la vez, cooldown 40-80 s, spawn
