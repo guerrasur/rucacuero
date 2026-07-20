@@ -110,8 +110,8 @@ export function init() {
 function syncModeUI() {
   const enCarrera = state.mode === 'carrera';
   document.body.classList.toggle('mode-carrera', enCarrera);
-  // el botón muestra el modo al que vas a pasar
-  els.modoBtn.textContent = enCarrera ? 'Zen' : 'Carrera';
+  // el yin-yang: activo en carrera (te lleva al zen), apagado en zen (te vuelve)
+  els.modoBtn.setAttribute('aria-label', enCarrera ? 'Pasar al modo Zen' : 'Volver al modo Carrera');
   els.timer.hidden = !enCarrera;
   els.upgradeList.hidden = enCarrera;
   els.upgradeListCarrera.hidden = !enCarrera;

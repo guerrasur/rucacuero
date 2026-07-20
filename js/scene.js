@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { climb, wind, knotHeight, knotHasSap, knotIndexAbove, hash, MAX_JUMP, PERFECT_W, ZONES } from './climb.js';
 import { branchEvents } from './events.js';
 import { skinHex } from './cosmetics.js';
+import { run } from './carrera.js';
 
 const C = {
   noche: '#131B12',
@@ -13,6 +14,7 @@ const C = {
   hueso: '#F2E8CE',
   tinta: '#2A1C14',
   ocre: '#C9825A',
+  tierra: '#3B2A1B', // suelo: marrón entre tinta y ocre
   nocheDeep: '#0C120B',
   nocheSoft: '#1A2617',
 };
@@ -168,11 +170,14 @@ export class Scene {
     this.cameraH += (h - this.cameraH) * Math.min(1, dt * 4.5);
     this.shake = Math.max(0, this.shake - dt * 2.4);
 
-    // zoom de cámara (solo carrera): con la racha el salto crece sin tope y
-    // la vista se abre para que el aterrizaje proyectado entre en pantalla
+    // zoom de cámara (solo carrera, y solo en vuelo o caída): mientras
+    // apuntás el árbol queda quieto; el zoom es el momento del viaje
     let need = 1;
-    if (state.mode === 'carrera' && (climb.phase === 'charging' || climb.phase === 'leaping')) {
-      need = Math.max(1, Math.min(40, (climb.jumpMeters() * 1.5) / VISIBLE_M));
+    if (state.mode === 'carrera') {
+      let dist = 0;
+      if (climb.phase === 'leaping') dist = Math.abs(climb.leapTo - climb.jumpStart);
+      else if (climb.phase === 'slipping') dist = Math.abs(climb.slipFrom - climb.slipTo);
+      need = Math.max(1, Math.min(40, (dist * 1.3) / VISIBLE_M));
     }
     this.zoom = this.zoom || 1;
     this.zoom += (need - this.zoom) * Math.min(1, dt * 3);
@@ -194,6 +199,7 @@ export class Scene {
     this.drawMilestones();
     this.drawRecordLine();
     this.drawAnts(view.antRate);
+    this.drawGround();
     this.drawChargeOverlays();
     this.drawClimber(h);
     this.drawBird();
@@ -446,6 +452,49 @@ export class Scene {
     ctx.globalAlpha = 1;
   }
 
+  // ---------- la tierra: el piso curvo del que sale el tallo ----------
+  drawGround() {
+    const { ctx } = this;
+    const sy = this.yOf(0) + 26; // la superficie pasa por los pies del escalador
+    if (sy > this.H + 400) return; // quedó muy abajo: ni se dibuja
+    const R = this.W * 1.1; // curva suave que se escapa por los bordes
+    const cx = this.W / 2;
+    const cy = sy + R;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fillStyle = C.tierra;
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = C.tinta;
+    ctx.stroke();
+    // pastitos y trazos de xilografía sobre la loma
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = C.musgo;
+    for (let i = 0; i < 11; i++) {
+      const d = (hash(i * 5.3) - 0.5) * 0.85;
+      const px = cx + R * Math.sin(d);
+      const py = cy - R * Math.cos(d);
+      ctx.beginPath();
+      ctx.moveTo(px, py + 1);
+      ctx.lineTo(px + (hash(i * 1.7) - 0.5) * 6, py - 5 - hash(i * 2.7) * 5);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = C.hueso;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 5; i++) {
+      const d = (hash(i * 9.1 + 3) - 0.5) * 0.8;
+      const px = cx + (R - 18) * Math.sin(d);
+      const py = cy - (R - 18) * Math.cos(d);
+      ctx.beginPath();
+      ctx.moveTo(px - 5, py);
+      ctx.lineTo(px + 5, py + 1.5);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // ---------- partículas ----------
   burst(kind, px, py) {
     const x = px ?? this.climberPos.x;
@@ -545,9 +594,8 @@ export class Scene {
     // micro-zona perfecta: siempre visible y distinta — soltar ahí nunca
     // falla y sostiene la racha. Late con un pulso y bordes de hueso.
     const pulse = 0.7 + 0.3 * Math.sin(this.t * 6);
-    const pw = climb.perfectW();
-    const py1 = this.yOf(kh + pw);
-    const py2 = this.yOf(kh - pw);
+    const py1 = this.yOf(kh + PERFECT_W);
+    const py2 = this.yOf(kh - PERFECT_W);
     const gs = 54 + 10 * pulse;
     ctx.globalAlpha = 0.75 * a * pulse;
     ctx.drawImage(this.glowSprite, bx - gs / 2, this.yOf(kh) - gs / 2, gs, gs);
@@ -600,9 +648,8 @@ export class Scene {
     ctx.stroke();
 
     const gap = kh - state.height;
-    const jm = climb.jumpMeters();
-    const pLo = Math.max(0, Math.min(1, (gap - w) / jm));
-    const pHi = Math.max(0, Math.min(1, (gap + w) / jm));
+    const pLo = Math.max(0, Math.min(1, (gap - w) / MAX_JUMP));
+    const pHi = Math.max(0, Math.min(1, (gap + w) / MAX_JUMP));
     ctx.fillStyle = 'rgba(242,232,206,0.32)';
     ctx.fillRect(mtX - 4, mtTop + mtH * (1 - pHi), 8, mtH * (pHi - pLo));
 
@@ -623,7 +670,17 @@ export class Scene {
     this.climberPos.y = y;
     ctx.save();
     ctx.translate(x, y);
-    drawFigure(ctx, this.t, this.poseFor(), state.cosmetics);
+    const g = state.mode === 'carrera' ? run.ground : null;
+    if (g) {
+      // tumbado contra la tierra tras la caída; al levantarse la rotación
+      // vuelve suave a cero y el loop arranca de nuevo
+      const p = g.phase === 'tumbado' ? 1 : Math.max(0, g.t / g.dur);
+      ctx.translate(8 * p, 15 * p);
+      ctx.rotate((Math.PI / 2) * p);
+      drawFigure(ctx, this.t, { crouch: 0.35, reach: 0.08, flail: 0 }, state.cosmetics);
+    } else {
+      drawFigure(ctx, this.t, this.poseFor(), state.cosmetics);
+    }
     ctx.restore();
   }
 

@@ -9,12 +9,15 @@ Formato de números: `toLocaleString('es-AR')` (coma decimal).
 
 ## Dos modos (botón `#modo-btn`)
 
-- **Carrera** (principal, default): contrarreloj desde el tallo (60 s + mejoras).
-  Los perfectos encadenados multiplican el salto **exponencialmente y sin tope**
-  (`1,25^racha`, la zona dulce/perfecta escala igual → el timing no se endurece;
-  la cámara hace zoom out). Al agotarse el tiempo el jugador cae a la raíz y la
-  altura pico paga **hormigas coloradas** (moneda propia, HUD en ocre) con 4
-  mejoras propias (`carrera.js`). El récord y la altura son por modo.
+- **Carrera** (principal, default): contrarreloj desde la tierra (60 s + mejoras).
+  La puntería es SIEMPRE a escala base contra el próximo nudo (el árbol no se
+  mueve al apuntar); los perfectos encadenados multiplican los **metros ganados
+  al agarrar**, exponencial y sin tope (`gainMul = resorte × 1,25^racha`): el
+  salto te eleva de largo pasando ramas enteras, con zoom out solo durante el
+  vuelo/caída. Al agotarse el tiempo cae a la tierra (queda tumbado ~1,1 s y se
+  levanta, `run.ground`) y la altura pico paga **hormigas coloradas** (HUD en
+  ocre) con 4 mejoras propias (`carrera.js`). Récord y altura por modo. El piso
+  curvo de tierra se dibuja en ambos modos (`drawGround`).
 - **Zen**: el juego original intacto (escalada libre persistente, hormigas
   negras pasivas, eventos de rama y misiones SOLO acá). La savia y sus unlocks
   corren en ambos modos. `state.height/bestHeight` son siempre del modo activo;
@@ -88,10 +91,13 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   unlock `brisa`), `PERFECT_W=0.14` (soltada dentro de ±0.14 = agarre
   perfecto, **inmune a la tirada de mala suerte** — la micro-zona premia la
   precisión, se dibuja siempre con pulso + bordes hueso + glow). Racha de
-  perfectos: `STREAK_MULTS=[1,1.1,1.2,1.3,1.5,1.7,2]` multiplica los metros
-  ganados (impulso extra en `release()`, solo suma); cualquier soltada no
-  perfecta la corta (`breakStreak()`); badge `#mult` en el HUD con animación
-  pop por cada perfecto. Pérdidas: corto −1.2, pasado −3.0,
+  perfectos: en zen `STREAK_MULTS=[1,1.1,1.2,1.3,1.5,1.7,2]` (impulso extra en
+  `release()`, solo suma); en carrera `gainMul()` exponencial sin tope; en
+  ambos, cualquier soltada no perfecta la corta (`breakStreak()`); badge
+  `#mult` en el HUD con pop por perfecto. `MIN_TARGET_GAP=1.8`: si el próximo
+  nudo quedó a menos de eso (p. ej. tras un resbalón) `press()` apunta directo
+  al siguiente cuando es alcanzable — nunca un objetivo sin tiempo de
+  reacción. `leapDur` escala con la distancia del vuelo. Pérdidas: corto −1.2, pasado −3.0,
   mala suerte −2.2 (clamp a 0). `climb.mods` = hooks inyectados por main
   (lluvia/niebla: slipBonus/sweetMul). Eventos via `emit()`/`takeEvents()`.
 - `events.js` — `branchEvents`, un evento a la vez, cooldown 40-80 s, spawn
