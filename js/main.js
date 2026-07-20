@@ -8,8 +8,10 @@ import * as audio from './audio.js';
 import { branchEvents } from './events.js';
 import * as quests from './quests.js';
 import * as logros from './logros.js';
+import * as cosmetics from './cosmetics.js';
 
 load();
+cosmetics.sanitize();
 initAutosave();
 quests.init(economy.antRate);
 
@@ -45,6 +47,8 @@ window.addEventListener('pointerup', () => climb.release());
 window.addEventListener('pointercancel', () => climb.release());
 window.addEventListener('keydown', e => {
   if (e.code === 'Space' && !e.repeat) {
+    // sin esto, Espacio "clickea" el último botón enfocado (mute/tienda)
+    e.preventDefault();
     ui.hideHint();
     audio.ensure();
     climb.press();
@@ -199,4 +203,4 @@ if ('serviceWorker' in navigator && (!esLocal || new URLSearchParams(location.se
 }
 
 // acceso para debug y pruebas automatizadas
-window.__ruca = { state, climb, wind, economy, events: branchEvents, quests, logros, scene };
+window.__ruca = { state, climb, wind, economy, events: branchEvents, quests, logros, cosmetics, scene };
