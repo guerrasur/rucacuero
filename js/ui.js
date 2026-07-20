@@ -15,6 +15,7 @@ import * as audio from './audio.js';
 import * as quests from './quests.js';
 import * as logros from './logros.js';
 import * as cosmetics from './cosmetics.js';
+import * as carrera from './carrera.js';
 import { drawProbador, drawCosmeticIcon } from './scene.js';
 
 const $ = id => document.getElementById(id);
@@ -40,6 +41,10 @@ export function init() {
     heightN: $('height-n'),
     mult: $('mult'),
     record: $('record'),
+    timer: $('timer'),
+    modoBtn: $('modo-btn'),
+    shopSub: $('shop-sub'),
+    upgradeListCarrera: $('upgrade-list-carrera'),
     questText: $('quest-text'),
     ants: $('ants-n'),
     sap: $('sap-n'),
@@ -86,9 +91,36 @@ export function init() {
     syncMuteIcon();
     els.muteBtn.blur();
   });
+  els.modoBtn.addEventListener('click', () => {
+    audio.ensure();
+    const next = state.mode === 'carrera' ? 'zen' : 'carrera';
+    carrera.setMode(next);
+    syncModeUI();
+    if (next === 'zen') showBanner('Modo Zen', 'la rama de siempre, sin apuro');
+    else showBanner('Modo Carrera', `${Math.round(carrera.timeTotal())} s para subir lo más alto posible`);
+    els.modoBtn.blur();
+  });
   syncMuteIcon();
   buildShop();
   buildRopero();
+  syncModeUI();
+}
+
+// refleja el modo activo en HUD, botón y tienda
+function syncModeUI() {
+  const enCarrera = state.mode === 'carrera';
+  document.body.classList.toggle('mode-carrera', enCarrera);
+  // el botón muestra el modo al que vas a pasar
+  els.modoBtn.textContent = enCarrera ? 'Zen' : 'Carrera';
+  els.timer.hidden = !enCarrera;
+  els.upgradeList.hidden = enCarrera;
+  els.upgradeListCarrera.hidden = !enCarrera;
+  els.shopSub.textContent = enCarrera
+    ? 'Las hormigas coloradas se ganan llegando alto en cada carrera.'
+    : 'Las hormigas trabajan mientras el juego está abierto.';
+  hud.ants = ''; // fuerza reescritura del contador con la moneda del modo
+  hud.rec = '';
+  refreshShop(true);
 }
 
 function syncMuteIcon() {
@@ -163,6 +195,27 @@ function buildShop() {
       }
     });
     els.upgradeList.appendChild(card);
+  }
+
+  // mejoras del modo carrera: mismas cartas, moneda colorada
+  els.upgradeListCarrera.innerHTML = '';
+  for (const def of carrera.R_UPGRADES) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = def.id;
+    card.innerHTML =
+      `<div class="card-info"><h3>${def.name}<span class="lvl"></span></h3><p>${def.desc}</p></div>` +
+      `<button class="buy">${ANT_SVG}<span class="cost"></span></button>`;
+    card.querySelector('.buy').addEventListener('click', () => {
+      const costo = carrera.upgradeCost(def);
+      if (carrera.buy(def)) {
+        audio.ensure();
+        audio.buy();
+        logros.bump('gastadas', costo);
+        refreshShop(true);
+      }
+    });
+    els.upgradeListCarrera.appendChild(card);
   }
 
   els.unlockList.innerHTML = '';
@@ -346,6 +399,21 @@ function refreshShop(force) {
     }
   }
 
+  for (const card of els.upgradeListCarrera.children) {
+    const def = carrera.R_UPGRADES.find(d => d.id === card.dataset.id);
+    const lvl = state.carrera.upgrades[def.id];
+    card.querySelector('.lvl').textContent = lvl > 0 ? `nv ${lvl}` : '';
+    const btn = card.querySelector('.buy');
+    const costEl = card.querySelector('.cost');
+    if (lvl >= def.max) {
+      costEl.textContent = 'MÁX';
+      btn.disabled = true;
+    } else {
+      costEl.textContent = fmtInt(carrera.upgradeCost(def));
+      btn.disabled = !carrera.canBuy(def);
+    }
+  }
+
   for (const row of els.unlockList.children) {
     const done = state.unlocks.includes(row.dataset.id);
     row.classList.toggle('locked', !done);
@@ -369,10 +437,16 @@ function refreshShop(force) {
     els.logrosCount.textContent = count;
   }
 
-  const rate = antRateFn().toLocaleString('es-AR', { maximumFractionDigits: 2 });
-  const slipPct = (slipChance(false) * 100).toLocaleString('es-AR', { maximumFractionDigits: 1 });
   const sapRate = SAP_RATE.toLocaleString('es-AR', { minimumFractionDigits: 1 });
-  els.shopStats.textContent = `${rate} hormigas/s · ${sapRate} savia/s · resbalón ${slipPct}%`;
+  if (state.mode === 'carrera') {
+    const u = state.carrera.upgrades;
+    const salto = (1 + 0.08 * u.resorte).toLocaleString('es-AR', { maximumFractionDigits: 2 });
+    els.shopStats.textContent = `salto ×${salto} · carrera ${Math.round(carrera.timeTotal())} s · ${sapRate} savia/s`;
+  } else {
+    const rate = antRateFn().toLocaleString('es-AR', { maximumFractionDigits: 2 });
+    const slipPct = (slipChance(false) * 100).toLocaleString('es-AR', { maximumFractionDigits: 1 });
+    els.shopStats.textContent = `${rate} hormigas/s · ${sapRate} savia/s · resbalón ${slipPct}%`;
+  }
 }
 
 export function hideHint() {
@@ -461,7 +535,7 @@ export function onClimbEvent(ev) {
 }
 
 // cache de lo último escrito: tocar el DOM solo cuando el texto cambia
-const hud = { h: '', rec: '', ants: '', sap: '', bar: -1, quest: '', charging: false };
+const hud = { h: '', rec: '', ants: '', sap: '', bar: -1, quest: '', charging: false, timer: '' };
 
 export function update() {
   // durante la carga, la UI se atenúa (clase en body, solo cuando cambia)
@@ -480,10 +554,22 @@ export function update() {
     hud.rec = rec;
     els.record.textContent = rec;
   }
-  const ants = fmtInt(state.ants);
+  // el contador muestra la moneda del modo activo (coloradas en carrera)
+  const enCarrera = state.mode === 'carrera';
+  const ants = fmtInt(enCarrera ? state.carrera.ants : state.ants);
   if (ants !== hud.ants) {
     hud.ants = ants;
     els.ants.textContent = ants;
+  }
+  if (enCarrera) {
+    const r = carrera.run;
+    const left = r.active ? r.left : carrera.timeTotal();
+    const timer = `${left.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
+    if (timer !== hud.timer) {
+      hud.timer = timer;
+      els.timer.textContent = timer;
+      els.timer.classList.toggle('acaba', r.active && left < 10);
+    }
   }
   const sap = fmtInt(state.sap);
   if (sap !== hud.sap) {

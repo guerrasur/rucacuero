@@ -9,6 +9,7 @@ import { branchEvents } from './events.js';
 import * as quests from './quests.js';
 import * as logros from './logros.js';
 import * as cosmetics from './cosmetics.js';
+import * as carrera from './carrera.js';
 
 load();
 cosmetics.sanitize();
@@ -27,6 +28,12 @@ ui.init();
 
 // input: toda la pantalla de juego es el botón de carga
 // (salvo que toques al chucao: eso lo espanta y suelta su bono)
+function pressJump() {
+  if (carrera.run.blocked()) return; // cayendo al final de la carrera
+  carrera.run.onPress(); // en carrera, el primer salto arranca el reloj
+  climb.press();
+}
+
 canvas.addEventListener('pointerdown', e => {
   e.preventDefault();
   ui.hideHint();
@@ -41,7 +48,7 @@ canvas.addEventListener('pointerdown', e => {
     branchEvents.tapSwarm();
     return;
   }
-  climb.press();
+  pressJump();
 });
 window.addEventListener('pointerup', () => climb.release());
 window.addEventListener('pointercancel', () => climb.release());
@@ -52,7 +59,7 @@ window.addEventListener('keydown', e => {
     e.preventDefault();
     ui.hideHint();
     audio.ensure();
-    climb.press();
+    pressJump();
   }
 });
 window.addEventListener('keyup', e => {
@@ -68,12 +75,16 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
 
-  for (const u of economy.tick(dt, branchEvents.sapMul())) ui.toast(u);
+  // hormigas negras, eventos de rama y misiones son del zen; la savia y el
+  // viento corren siempre
+  const zen = state.mode === 'zen';
+  for (const u of economy.tick(dt, zen ? branchEvents.sapMul() : 1, zen)) ui.toast(u);
   wind.update(dt);
   if (wind.phase === 'gust' && prevWindPhase !== 'gust') audio.gust(wind.dur);
   prevWindPhase = wind.phase;
-  branchEvents.update(dt);
+  if (zen) branchEvents.update(dt);
   climb.update(dt);
+  carrera.run.update(dt);
   if (climb.phase === 'charging') audio.chargeUpdate(climb.power);
   else audio.chargeEnd();
   audio.ambientUpdate(dt, {
@@ -89,21 +100,23 @@ function frame(now) {
       case 'grab':
         audio.grab();
         scene.burst('bark');
-        quests.note('grab', 1, { windy: wind.windy() });
-        quests.note('meters', ev.gain);
+        if (zen) {
+          quests.note('grab', 1, { windy: wind.windy() });
+          quests.note('meters', ev.gain);
+        }
         logros.bump('metros', ev.gain);
         break;
       case 'perfect':
       case 'chain':
         audio.perfect();
         scene.burst('spark');
-        quests.note('grab', 1, { windy: wind.windy() });
+        if (zen) quests.note('grab', 1, { windy: wind.windy() });
         if (ev.type === 'perfect') {
-          quests.note('perfect');
+          if (zen) quests.note('perfect');
           logros.bump('perfectos');
         }
         if (ev.gain) {
-          quests.note('meters', ev.gain);
+          if (zen) quests.note('meters', ev.gain);
           logros.bump('metros', ev.gain);
         }
         break;
@@ -115,14 +128,14 @@ function frame(now) {
         audio.slip();
         scene.burst('dust');
         scene.addShake(0.5);
-        quests.note('slip');
+        if (zen) quests.note('slip');
         break;
       case 'over':
       case 'badluck':
         audio.slip();
         scene.burst('dust');
         scene.addShake(1);
-        quests.note('slip');
+        if (zen) quests.note('slip');
         break;
       case 'zone':
         ui.showBanner(ev.zone.name, `${ev.zone.at} m`);
@@ -174,6 +187,27 @@ function frame(now) {
     }
   }
 
+  for (const ev of carrera.run.takeEvents()) {
+    switch (ev.type) {
+      case 'run-start':
+        ui.showBanner('¡A trepar!', `${Math.round(ev.total)} s para subir lo más alto posible`);
+        break;
+      case 'run-fall':
+        ui.showBanner('¡Se acabó el tiempo!', 'de vuelta al tallo');
+        audio.slip();
+        scene.burst('dust');
+        scene.addShake(1.2);
+        break;
+      case 'run-end': {
+        const m = ev.peak.toLocaleString('es-AR', { maximumFractionDigits: 1 });
+        ui.showBanner('Fin de la carrera', `${m} m · +${ev.reward.toLocaleString('es-AR')} coloradas`);
+        ui.flash(`+${ev.reward.toLocaleString('es-AR')} hormigas coloradas`, 'good');
+        audio.questDone();
+        break;
+      }
+    }
+  }
+
   for (const ev of quests.takeEvents()) {
     if (ev.type === 'quest-done') {
       ui.questToast(ev.text, ev.reward);
@@ -204,4 +238,4 @@ if ('serviceWorker' in navigator && (!esLocal || new URLSearchParams(location.se
 }
 
 // acceso para debug y pruebas automatizadas
-window.__ruca = { state, climb, wind, economy, events: branchEvents, quests, logros, cosmetics, scene };
+window.__ruca = { state, climb, wind, economy, events: branchEvents, quests, logros, cosmetics, carrera, scene };

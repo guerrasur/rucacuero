@@ -19,6 +19,10 @@ const LOSS_OVER = 3.0;
 const LOSS_LUCK = 2.2;
 const LEAP_TIME = 0.5;
 const SLIP_TIME = 0.7;
+// carrera: base exponencial de la racha (cada perfecto multiplica el salto)
+const RUN_STREAK_BASE = 1.25;
+const RUN_STREAK_ECO = 0.03; // extra por nivel de "eco del perfecto"
+const RUN_RESORTE = 0.08; // +salto base por nivel de "piernas de resorte"
 const RESIN_EVERY = 5; // saltos entre salvadas de resina
 
 function frac(x) {
@@ -125,6 +129,7 @@ export const climb = {
   power: 0,
   t: 0,
   targetKnot: 1,
+  minKnot: 1,
   jumpStart: 0,
   leapTo: 0,
   slipFrom: 0,
@@ -149,20 +154,55 @@ export const climb = {
     return e;
   },
 
+  // En carrera el salto crece: mejora "resorte" × racha de perfectos
+  // exponencial y SIN tope (1.25^racha, más fuerte con "eco"). En zen es 1:
+  // el modo de siempre queda idéntico.
+  jumpMul() {
+    if (state.mode !== 'carrera') return 1;
+    const u = state.carrera.upgrades;
+    return (
+      (1 + RUN_RESORTE * u.resorte) *
+      Math.pow(RUN_STREAK_BASE + RUN_STREAK_ECO * u.eco, this.perfectStreak)
+    );
+  },
+  jumpMeters() {
+    return MAX_JUMP * this.jumpMul();
+  },
   sweetW() {
-    // "abrigo de brisa": la ráfaga angosta menos la zona dulce
+    // "abrigo de brisa": la ráfaga angosta menos la zona dulce.
+    // En carrera escala con el salto: el timing (en segundos) no se endurece
+    // aunque el salto sea gigante — la racha premia sin volverse imposible.
     const windW = state.unlocks.includes('brisa') ? 0.38 : SWEET_WIND;
-    return (wind.windy() ? windW : SWEET_BASE) * zoneAt(state.height).sweetMul * this.mods.sweetMul();
+    return (
+      (wind.windy() ? windW : SWEET_BASE) *
+      zoneAt(state.height).sweetMul *
+      this.mods.sweetMul() *
+      this.jumpMul()
+    );
+  },
+  perfectW() {
+    return PERFECT_W * this.jumpMul();
   },
   landingH() {
-    return state.height + this.power * MAX_JUMP;
+    return state.height + this.power * this.jumpMeters();
   },
 
   press() {
     if (this.phase !== 'idle') return;
     this.phase = 'charging';
     this.power = 0;
-    this.targetKnot = nextKnotIndex(state.height);
+    this.minKnot = nextKnotIndex(state.height);
+    this.targetKnot = this.minKnot;
+  },
+
+  // carrera: con saltos grandes se apunta al nudo más cercano al aterrizaje
+  // proyectado (nunca menos que el próximo) — un salto puede comerse varios
+  retarget() {
+    const land = this.landingH();
+    const iA = Math.max(this.minKnot, knotIndexAbove(land));
+    let t = iA;
+    if (iA - 1 >= this.minKnot && land - knotHeight(iA - 1) < knotHeight(iA) - land) t = iA - 1;
+    this.targetKnot = t;
   },
 
   release() {
@@ -182,14 +222,24 @@ export const climb = {
     } else {
       this.result = 'grab';
       this.leapTo = kH;
-      this.perfect = Math.abs(land - kH) <= PERFECT_W;
-      // racha de perfectos: sube el multiplicador y regala impulso extra
-      // (solo metros de más — jamás resta). El perfecto es infalible, así
-      // que se resuelve acá y el vuelo anima suave hasta la altura final.
+      this.perfect = Math.abs(land - kH) <= this.perfectW();
+      // racha de perfectos. El perfecto es infalible, así que se resuelve acá
+      // y el vuelo anima suave hasta la altura final.
       if (this.perfect) {
         this.perfectStreak += 1;
-        this.streakMult = STREAK_MULTS[Math.min(this.perfectStreak, STREAK_MULTS.length - 1)];
-        this.leapTo += (kH - this.jumpStart) * (this.streakMult - 1);
+        if (state.mode === 'carrera') {
+          // carrera: el premio es el PRÓXIMO salto, exponencialmente más
+          // alto y sin tope; el badge ×mult muestra ese multiplicador
+          this.streakMult = Math.pow(
+            RUN_STREAK_BASE + RUN_STREAK_ECO * state.carrera.upgrades.eco,
+            this.perfectStreak
+          );
+        } else {
+          // zen: multiplicador acotado + impulso extra al aterrizar
+          // (solo metros de más — jamás resta)
+          this.streakMult = STREAK_MULTS[Math.min(this.perfectStreak, STREAK_MULTS.length - 1)];
+          this.leapTo += (kH - this.jumpStart) * (this.streakMult - 1);
+        }
       } else {
         this.breakStreak();
       }
@@ -260,22 +310,36 @@ export const climb = {
     this.phase = 'idle';
   },
 
-  startSlip(from, to) {
+  startSlip(from, to, dur = SLIP_TIME) {
     this.slipFrom = from;
     this.slipTo = to;
+    this.slipDur = dur;
     this.t = 0;
     this.phase = 'slipping';
+  },
+
+  // al cambiar de modo la máquina vuelve a cero (sin racha heredada)
+  resetForMode() {
+    this.phase = 'idle';
+    this.power = 0;
+    this.t = 0;
+    this.breakStreak();
+    this.lastZone = null;
+    this.chargeAlpha = 0;
+    this.minKnot = nextKnotIndex(state.height);
+    this.targetKnot = this.minKnot;
   },
 
   update(dt) {
     if (!this.lastZone) this.lastZone = zoneAt(state.height);
     if (this.phase === 'charging') {
       this.power = Math.min(1, this.power + CHARGE_SPEED * dt);
+      if (state.mode === 'carrera') this.retarget();
     } else if (this.phase === 'leaping') {
       this.t += dt / LEAP_TIME;
       if (this.t >= 1) this.arrive();
     } else if (this.phase === 'slipping') {
-      this.t += dt / SLIP_TIME;
+      this.t += dt / (this.slipDur || SLIP_TIME);
       if (this.t >= 1) {
         state.height = this.slipTo;
         // si el resbalón te bajó de zona, el cartel vuelve a salir al re-entrar

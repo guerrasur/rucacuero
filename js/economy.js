@@ -126,8 +126,10 @@ export function nextLockedUnlock() {
 
 // Avanza la economía un frame. Devuelve los desbloqueos de savia recién alcanzados.
 // sapMul: multiplicador de eventos (lluvia); la savia solo sube, nunca baja.
-export function tick(dt, sapMul = 1) {
-  state.ants += antRate() * dt;
+// genAnts: las hormigas negras solo se generan en modo zen; la savia es
+// pasiva y constante en los dos modos (regla inviolable: nunca baja).
+export function tick(dt, sapMul = 1, genAnts = true) {
+  if (genAnts) state.ants += antRate() * dt;
   state.sap += SAP_RATE * dt * sapMul;
   const fresh = [];
   for (const u of SAP_UNLOCKS) {

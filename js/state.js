@@ -5,10 +5,18 @@ const KEY = 'rucacuero_save_v1';
 
 export const state = {
   v: 1,
-  ants: 0,
+  // modo activo: 'carrera' (principal, contrarreloj) o 'zen' (escalada libre)
+  mode: 'carrera',
+  ants: 0, // hormigas negras: moneda del modo zen
   sap: 0,
+  // altura y récord DEL MODO ACTIVO (climb/scene/HUD trabajan siempre acá)
   height: 0,
   bestHeight: 0,
+  // hogar persistente del progreso zen mientras jugás carrera
+  zen: { height: 0, best: 0 },
+  // modo carrera: hormigas coloradas, récord y mejoras propias.
+  // La altura de una run NO persiste: cada carrera arranca del tallo.
+  carrera: { ants: 0, best: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0 } },
   upgrades: { feromonas: 0, reina: 0, nudos: 0, mielada: 0, ofrenda: 0 },
   unlocks: [],
   quest: null, // misión activa: { id, target, progress }
@@ -40,10 +48,29 @@ export function load() {
     return;
   }
   if (!data || data.v !== 1) return;
+  state.mode = data.mode === 'zen' ? 'zen' : 'carrera';
   state.ants = num(data.ants);
   state.sap = num(data.sap);
-  state.height = num(data.height);
-  state.bestHeight = Math.max(num(data.bestHeight), state.height);
+  // migración: un save previo a los modos guardaba height/bestHeight sueltos —
+  // ese progreso es del zen (el juego de siempre), no se pierde nada
+  const zen = data.zen || {};
+  state.zen.height = num(zen.height ?? data.height);
+  state.zen.best = Math.max(num(zen.best ?? data.bestHeight), state.zen.height);
+  const ca = data.carrera || {};
+  state.carrera.ants = num(ca.ants);
+  state.carrera.best = num(ca.best);
+  const cup = ca.upgrades || {};
+  for (const k of Object.keys(state.carrera.upgrades)) {
+    state.carrera.upgrades[k] = Math.floor(num(cup[k]));
+  }
+  // la altura activa según el modo: la run de carrera no persiste (arranca en 0)
+  if (state.mode === 'zen') {
+    state.height = state.zen.height;
+    state.bestHeight = state.zen.best;
+  } else {
+    state.height = 0;
+    state.bestHeight = state.carrera.best;
+  }
   const up = data.upgrades || {};
   for (const k of Object.keys(state.upgrades)) {
     state.upgrades[k] = Math.floor(num(up[k]));
@@ -68,6 +95,13 @@ export function load() {
 }
 
 export function save() {
+  // height/bestHeight son del modo activo: volcarlos a su hogar persistente
+  if (state.mode === 'zen') {
+    state.zen.height = state.height;
+    state.zen.best = state.bestHeight;
+  } else {
+    state.carrera.best = Math.max(state.carrera.best, state.bestHeight);
+  }
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch {
