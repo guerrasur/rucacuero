@@ -54,8 +54,10 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   fallback a ocre) y `COSMETICS` (compra única con hormigas, slots
   `sombrero`/`chiripa`; `buyCosmetic()` auto-equipa, `setEquipped()`,
   `sanitize()` valida el save — main la llama tras `load()`). Solo importa
-  `state.js` (sin ciclos). Los sombreros/pañales se dibujan en `scene.js`
-  (`drawHat`, bloque chiripa en `drawClimber`); el chucao queda siempre ocre.
+  `state.js` (sin ciclos). El dibujo vive en `scene.js` como funciones de
+  módulo compartidas: `drawFigure(ctx,t,pose,cos)` (escena + probador),
+  `drawProbador` (maniquí con rama de fondo), `drawCosmeticIcon` (iconos de
+  cartas) e `idlePose`; el chucao queda siempre ocre.
 - `climb.js` — el corazón: nudos deterministas (`knotHeight(i)` memoizado,
   `knotIndexAbove(h)` búsqueda binaria), `ZONES` (7 zonas: 0/30/70/120/180/
   260/360 que cambian verde/gapMul/savia/viento), objeto `wind`
@@ -95,9 +97,12 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   (Path2D), niebla (bandas de `fogSprite` + velo), lluvia, viñeta.
   `scene.birdPos` y `scene.swarmPos` los usa main para el hit-test del tap.
 - `ui.js` — HUD (escrituras DOM **solo cuando cambia el texto** — mantener),
-  dos bottom-sheets via `openSheet('shop'|'ropero'|null)` (una sola abierta,
-  scrim compartido): tienda (mejoras + savia + logros) y ropero (swatches de
-  piel + cards comprar/ponerse/sacarse), toasts, `showBanner()`,
+  tienda bottom-sheet (mejoras + savia + logros) y **ropero de pantalla
+  completa** (`openRopero()`/`closeRopero()`, export `roperoOpen()` que main
+  usa para bloquear el salto con Espacio): maniquí en vivo (`drawProbador`
+  por frame, objeto `probador` = lo que se prueba sin comprar), swatches de
+  piel (aplican al toque), cartas con icono canvas (`drawCosmeticIcon`, una
+  vez) y botón comprar/equipar/sacarse, toasts, `showBanner()`,
   `flash()`, chip de misión (abajo, entre tienda y mute, `pointer-events:
   none` — el tap pasa al canvas), clase `body.charging` que atenúa
   HUD/toasts/chip durante la carga (la zona de puntería queda limpia), mute

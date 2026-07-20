@@ -15,17 +15,21 @@ import * as audio from './audio.js';
 import * as quests from './quests.js';
 import * as logros from './logros.js';
 import * as cosmetics from './cosmetics.js';
+import { drawProbador, drawCosmeticIcon } from './scene.js';
 
 const $ = id => document.getElementById(id);
 const ANT_SVG =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="17" rx="3.2" ry="2.5" fill="currentColor"/><circle cx="12" cy="11.8" r="1.9" fill="currentColor"/><circle cx="12" cy="7.6" r="2.5" fill="currentColor"/><path d="M10.7 5.9 9.2 3.8M13.3 5.9 14.8 3.8M9.9 12l-3-1M14.1 12l3-1M9.7 16l-2.9 1.5M14.3 16l2.9 1.5M10.2 18.8 8.4 21.2M13.8 18.8 15.6 21.2"/></g></svg>';
 
 let els = {};
-let activeSheet = null; // 'shop' | 'ropero' | null (solo una abierta a la vez)
+let shopOpen = false;
+let roperoAbierto = false;
+// lo que el jugador se está probando en el maniquí (puede no estar comprado)
+const probador = { sombrero: null, chiripa: null };
 let lastShopRefresh = 0;
 let lastRoperoRefresh = 0;
 const logroCache = {}; // último texto escrito por fila de logro (disciplina DOM)
-const roperoCache = {}; // último estado escrito por botón de cosmético
+const roperoCache = {}; // último estado escrito por carta de cosmético
 
 const fmtInt = n => Math.floor(n).toLocaleString('es-AR');
 const fmtH = h =>
@@ -57,6 +61,9 @@ export function init() {
     iconMuted: $('icon-muted'),
     ropero: $('ropero'),
     roperoBtn: $('ropero-btn'),
+    roperoCerrar: $('ropero-cerrar'),
+    roperoAnts: $('ropero-ants'),
+    probadorCanvas: $('probador-canvas'),
     skinGrid: $('skin-grid'),
     hatList: $('hat-list'),
     panalList: $('panal-list'),
@@ -64,14 +71,15 @@ export function init() {
 
   // blur tras cada click: un botón enfocado se re-activa con Espacio (salto)
   els.shopBtn.addEventListener('click', () => {
-    openSheet(activeSheet === 'shop' ? null : 'shop');
+    toggleShop(!shopOpen);
     els.shopBtn.blur();
   });
   els.roperoBtn.addEventListener('click', () => {
-    openSheet(activeSheet === 'ropero' ? null : 'ropero');
+    openRopero();
     els.roperoBtn.blur();
   });
-  els.scrim.addEventListener('click', () => openSheet(null));
+  els.roperoCerrar.addEventListener('click', () => closeRopero());
+  els.scrim.addEventListener('click', () => toggleShop(false));
   els.muteBtn.addEventListener('click', () => {
     audio.ensure();
     audio.setMuted(!audio.isMuted());
@@ -91,24 +99,47 @@ function syncMuteIcon() {
   els.muteBtn.setAttribute('aria-label', m ? 'Activar sonido' : 'Silenciar sonido');
 }
 
-// abre una sheet ('shop' | 'ropero') o cierra todo (null); el scrim es compartido
-function openSheet(name) {
-  activeSheet = name;
-  const sheets = { shop: els.shop, ropero: els.ropero };
-  if (name) {
-    sheets[name].hidden = false;
-    els.scrim.hidden = false;
-  }
+function toggleShop(open) {
+  shopOpen = open;
+  els.shop.hidden = false;
+  els.scrim.hidden = false;
   requestAnimationFrame(() => {
-    for (const key of Object.keys(sheets)) sheets[key].classList.toggle('open', key === name);
-    els.scrim.classList.toggle('open', name !== null);
+    els.shop.classList.toggle('open', open);
+    els.scrim.classList.toggle('open', open);
   });
+  if (!open) {
+    setTimeout(() => {
+      if (!shopOpen) {
+        els.shop.hidden = true;
+        els.scrim.hidden = true;
+      }
+    }, 320);
+  }
+}
+
+// el ropero es un menú de pantalla completa: tapa el juego hasta volver.
+// El probador arranca con lo puesto de verdad.
+function openRopero() {
+  if (shopOpen) toggleShop(false);
+  roperoAbierto = true;
+  probador.sombrero = state.cosmetics.sombrero;
+  probador.chiripa = state.cosmetics.chiripa;
+  els.ropero.hidden = false;
+  requestAnimationFrame(() => els.ropero.classList.add('open'));
+  refreshRopero(true);
+}
+
+function closeRopero() {
+  roperoAbierto = false;
+  els.ropero.classList.remove('open');
   setTimeout(() => {
-    for (const key of Object.keys(sheets)) {
-      if (activeSheet !== key) sheets[key].hidden = true;
-    }
-    if (activeSheet === null) els.scrim.hidden = true;
-  }, 320);
+    if (!roperoAbierto) els.ropero.hidden = true;
+  }, 300);
+}
+
+// main la usa para no disparar saltos con Espacio dentro del menú
+export function roperoOpen() {
+  return roperoAbierto;
 }
 
 function buildShop() {
@@ -185,23 +216,40 @@ function buildCosmeticList(listEl, slot) {
   for (const def of cosmetics.COSMETICS) {
     if (def.slot !== slot) continue;
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = 'card cos';
     card.dataset.id = def.id;
     card.innerHTML =
+      `<canvas class="icono" aria-hidden="true"></canvas>` +
       `<div class="card-info"><h3>${def.name}</h3><p>${def.desc}</p></div>` +
       `<button class="buy"></button>`;
-    card.querySelector('button').addEventListener('click', () => {
+    // icono de previsualización: se dibuja una sola vez al construir
+    const cv = card.querySelector('.icono');
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = 46 * dpr;
+    cv.height = 46 * dpr;
+    const ictx = cv.getContext('2d');
+    ictx.scale(dpr, dpr);
+    drawCosmeticIcon(ictx, def, 46);
+    // tocar la carta = probárselo en el maniquí (aunque no esté comprado)
+    card.addEventListener('click', () => {
+      probador[slot] = probador[slot] === def.id ? null : def.id;
+      refreshRopero(true);
+    });
+    card.querySelector('button').addEventListener('click', e => {
+      e.stopPropagation();
       if (!cosmetics.owned(def.id)) {
         if (cosmetics.buyCosmetic(def)) {
           audio.ensure();
           audio.buy();
           quests.note('buy');
           logros.bump('gastadas', def.cost);
+          probador[slot] = def.id; // recién comprado, puesto
           refreshRopero(true);
         }
       } else {
-        const puesto = state.cosmetics[def.slot] === def.id;
-        cosmetics.setEquipped(def.slot, puesto ? null : def.id);
+        const puesto = state.cosmetics[slot] === def.id;
+        cosmetics.setEquipped(slot, puesto ? null : def.id);
+        probador[slot] = state.cosmetics[slot];
         refreshRopero(true);
       }
     });
@@ -221,12 +269,17 @@ function refreshRopero(force) {
   for (const listEl of [els.hatList, els.panalList]) {
     for (const card of listEl.children) {
       const def = cosmetics.COSMETICS.find(d => d.id === card.dataset.id);
-      // estado del botón: comprar (con/sin fondos) / ponerse / sacarse
+      const puesto = state.cosmetics[def.slot] === def.id;
+      const probando = probador[def.slot] === def.id;
+      // estado del botón: comprar (con/sin fondos) / equipar / sacarse
       let mode;
       if (!cosmetics.owned(def.id)) mode = cosmetics.canBuyCosmetic(def) ? 'comprar' : 'sin-fondos';
-      else mode = state.cosmetics[def.slot] === def.id ? 'puesto' : 'guardado';
-      if (roperoCache[def.id] === mode) continue;
-      roperoCache[def.id] = mode;
+      else mode = puesto ? 'puesto' : 'guardado';
+      const key = `${mode}|${probando}`;
+      if (roperoCache[def.id] === key) continue;
+      roperoCache[def.id] = key;
+      card.classList.toggle('probando', probando && !puesto);
+      card.classList.toggle('puesta', puesto);
       const btn = card.querySelector('button');
       if (mode === 'comprar' || mode === 'sin-fondos') {
         btn.className = 'buy';
@@ -234,11 +287,35 @@ function refreshRopero(force) {
         btn.disabled = mode === 'sin-fondos';
       } else {
         btn.className = mode === 'puesto' ? 'equip on' : 'equip';
-        btn.textContent = mode === 'puesto' ? 'Sacarse' : 'Ponerse';
+        btn.textContent = mode === 'puesto' ? 'Sacarse' : 'Equipar';
         btn.disabled = false;
       }
     }
   }
+  const ants = fmtInt(state.ants);
+  if (roperoCache._ants !== ants) {
+    roperoCache._ants = ants;
+    els.roperoAnts.textContent = ants;
+  }
+}
+
+// el maniquí del probador: se redibuja por frame solo con el ropero abierto
+function drawProbadorFrame() {
+  const cv = els.probadorCanvas;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = cv.clientWidth || 150;
+  const h = cv.clientHeight || 190;
+  if (cv.width !== Math.round(w * dpr)) {
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+  }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawProbador(ctx, w, h, performance.now() / 1000, {
+    piel: state.cosmetics.piel,
+    sombrero: probador.sombrero,
+    chiripa: probador.chiripa,
+  });
 }
 
 function refreshShop(force) {
@@ -427,6 +504,9 @@ export function update() {
     }
   }
 
-  if (activeSheet === 'shop') refreshShop(false);
-  else if (activeSheet === 'ropero') refreshRopero(false);
+  if (shopOpen) refreshShop(false);
+  if (roperoAbierto) {
+    refreshRopero(false);
+    drawProbadorFrame();
+  }
 }
