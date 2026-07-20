@@ -190,10 +190,10 @@ function frame(now) {
   for (const ev of carrera.run.takeEvents()) {
     switch (ev.type) {
       case 'run-start':
-        ui.showBanner('¡A trepar!', `${Math.round(ev.total)} s para subir lo más alto posible`);
+        ui.showBanner('¡A trepar!', `${ev.total.toLocaleString('es-AR', { maximumFractionDigits: 1 })} s para subir lo más alto posible`);
         break;
       case 'run-fall':
-        ui.showBanner('¡Se acabó el tiempo!', 'de vuelta al tallo');
+        ui.showBanner('¡Se acabó el tiempo!', 'de vuelta a la tierra');
         audio.slip();
         scene.burst('dust');
         scene.addShake(1.2);

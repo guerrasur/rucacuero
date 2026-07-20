@@ -9,12 +9,14 @@ Formato de números: `toLocaleString('es-AR')` (coma decimal).
 
 ## Dos modos (botón `#modo-btn`)
 
-- **Carrera** (principal, default): contrarreloj desde la tierra (60 s + mejoras).
-  La puntería es SIEMPRE a escala base contra el próximo nudo (el árbol no se
-  mueve al apuntar); los perfectos encadenados multiplican los **metros ganados
-  al agarrar**, exponencial y sin tope (`gainMul = resorte × 1,25^racha`): el
-  salto te eleva de largo pasando ramas enteras, con zoom out solo durante el
-  vuelo/caída. Al agotarse el tiempo cae a la tierra (queda tumbado ~1,1 s y se
+- **Carrera** (principal, default): contrarreloj desde la tierra (5 s pelados;
+  la mejora `reloj` suma 5,5 s/nivel hasta 60 s). La puntería es SIEMPRE a
+  escala base contra el próximo nudo; los perfectos encadenados multiplican los
+  **metros ganados al agarrar**, exponencial y sin tope
+  (`gainMul = resorte × 1,25^racha`): el salto te eleva de largo pasando ramas
+  enteras. La escala del render es fija (NADA de zoom — estiraba el árbol y
+  movía el objetivo); en vuelos/caídas rápidas la cámara se engancha al
+  escalador (clamp ±2,5 m sobre el lerp). Al agotarse el tiempo cae a la tierra (queda tumbado ~1,1 s y se
   levanta, `run.ground`) y la altura pico paga **hormigas coloradas** (HUD en
   ocre) con 4 mejoras propias (`carrera.js`). Récord y altura por modo. El piso
   curvo de tierra se dibuja en ambos modos (`drawGround`).
