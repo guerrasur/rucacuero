@@ -97,7 +97,7 @@ export function init() {
     carrera.setMode(next);
     syncModeUI();
     if (next === 'zen') showBanner('Modo Zen', 'la rama de siempre, sin apuro');
-    else showBanner('Modo Carrera', `${Math.round(carrera.timeTotal())} s para subir lo más alto posible`);
+    else showBanner('Modo Carrera', `${carrera.timeTotal().toLocaleString('es-AR', { maximumFractionDigits: 1 })} s para subir lo más alto posible`);
     els.modoBtn.blur();
   });
   syncMuteIcon();
@@ -441,7 +441,7 @@ function refreshShop(force) {
   if (state.mode === 'carrera') {
     const u = state.carrera.upgrades;
     const salto = (1 + 0.08 * u.resorte).toLocaleString('es-AR', { maximumFractionDigits: 2 });
-    els.shopStats.textContent = `salto ×${salto} · carrera ${Math.round(carrera.timeTotal())} s · ${sapRate} savia/s`;
+    els.shopStats.textContent = `salto ×${salto} · carrera ${carrera.timeTotal().toLocaleString('es-AR', { maximumFractionDigits: 1 })} s · ${sapRate} savia/s`;
   } else {
     const rate = antRateFn().toLocaleString('es-AR', { maximumFractionDigits: 2 });
     const slipPct = (slipChance(false) * 100).toLocaleString('es-AR', { maximumFractionDigits: 1 });

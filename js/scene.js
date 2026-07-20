@@ -170,18 +170,11 @@ export class Scene {
     this.cameraH += (h - this.cameraH) * Math.min(1, dt * 4.5);
     this.shake = Math.max(0, this.shake - dt * 2.4);
 
-    // zoom de cámara (solo carrera, y solo en vuelo o caída): mientras
-    // apuntás el árbol queda quieto; el zoom es el momento del viaje
-    let need = 1;
-    if (state.mode === 'carrera') {
-      let dist = 0;
-      if (climb.phase === 'leaping') dist = Math.abs(climb.leapTo - climb.jumpStart);
-      else if (climb.phase === 'slipping') dist = Math.abs(climb.slipFrom - climb.slipTo);
-      need = Math.max(1, Math.min(40, (dist * 1.3) / VISIBLE_M));
-    }
-    this.zoom = this.zoom || 1;
-    this.zoom += (need - this.zoom) * Math.min(1, dt * 3);
-    this.ppm = this.H / (VISIBLE_M * this.zoom);
+    // la escala es SIEMPRE fija (nada de zoom: estiraba el árbol y movía el
+    // objetivo); en los vuelos gigantes la cámara persigue al escalador y,
+    // si el viaje es más rápido que el lerp, se engancha para no perderlo
+    if (h - this.cameraH > 2.5) this.cameraH = h - 2.5;
+    else if (this.cameraH - h > 2.5) this.cameraH = h + 2.5;
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.fillStyle = C.noche;
