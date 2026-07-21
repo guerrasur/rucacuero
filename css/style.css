@@ -405,11 +405,24 @@ body.charging #modo-btn { opacity: .18; }
 }
 #shop-top h2 {
   flex: 1;
+  min-width: 0; /* si el título no cupiera, que se achique él, nunca el botón ✕ */
   font-size: 27px;
   color: var(--hueso);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* chips de moneda: los usan la tienda y el ropero */
+/* chips de moneda: los usan la tienda y el ropero. Fila propia, separada
+   del header — así un número largo (hormigas/savia con muchos dígitos)
+   nunca empuja el botón ✕ fuera de la pantalla (bug real: en el hormiguero
+   viejo los dos chips vivían en la misma fila que el header). */
+#shop-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
 .moneda-chip {
   display: flex;
   align-items: center;
@@ -569,8 +582,12 @@ body.mode-carrera .tab[data-id="hormigas"].sel { color: var(--ocre); border-bott
 }
 #ropero-top h2 {
   flex: 1;
+  min-width: 0;
   font-size: 27px;
   color: var(--hueso);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 #shop-cerrar,
 #ropero-cerrar {
