@@ -106,12 +106,6 @@ export const ICONOS = {
   misiones100: svg(
     '<path d="M12 3.5 20.5 12 12 20.5 3.5 12z" fill="currentColor"/><path d="m9 12 2.2 2.2L15 10" stroke="#131B12"/>'
   ),
-  nube1: svg(
-    '<path d="M6.5 15.5a3.5 3.5 0 0 1 .6-6.9A4.3 4.3 0 0 1 15.4 8a3.6 3.6 0 0 1 2 7.3z" fill="currentColor"/><path d="M4.5 19h15"/>'
-  ),
-  nubes5: svg(
-    '<path d="M5.5 12a3 3 0 0 1 .6-5.9A3.8 3.8 0 0 1 13.5 5.5 3.1 3.1 0 0 1 15 11.6z" fill="currentColor"/><path d="M9.5 19.5a3 3 0 0 1 .6-5.9 3.8 3.8 0 0 1 7.4-.6 3.1 3.1 0 0 1 1.5 6.1z"/>'
-  ),
   metros20000: svg(
     '<path d="M3.5 20 8 11l3 4.5L14 9l6.5 11z" fill="currentColor"/><path d="M14 9V4M14 4h4l-1.5 1.7L18 7.5h-4"/><circle cx="6" cy="5" r="1.2" fill="currentColor" stroke="none"/>'
   ),

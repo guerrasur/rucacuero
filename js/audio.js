@@ -211,8 +211,8 @@ export function hailTick() {
   noise(0.14, 0.05, 2400 + Math.random() * 1200, 2);
 }
 
-// La nube-checkpoint: acorde suave que sube, como atravesar algodón.
-export function nubeChime() {
+// Rebirth (volver a la tierra): acorde suave que baja y se asienta.
+export function rebirthChime() {
   [392, 494, 587, 784].forEach((f, i) => setTimeout(() => blip(f, 'sine', 0.18, 0.5), i * 130));
 }
 

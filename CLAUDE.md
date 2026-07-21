@@ -64,7 +64,7 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
 
 - `state.js` — objeto `state` + load/save/autosave. Schema del save:
   `{ v:1, mode:'carrera'|'zen', ants, sap, height, bestHeight,
-  zen:{height,best}, carrera:{ants,best,checkpoint,upgrades:{resorte,reloj,eco,botin}},
+  zen:{height,best}, carrera:{ants,best,upgrades:{resorte,reloj,eco,botin}},
   upgrades:{feromonas,reina,nudos,mielada,ofrenda}, unlocks:[ids],
   quest:{id,target,progress}|null, questsDone,
   life:{metros,perfectos,chucaos,lluvias,gastadas,enjambres}, logros:[ids],
@@ -81,14 +81,11 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   objeto `run` (active/started/left/peak/falling; `onPress()` ARMA la carrera
   con el reloj EN PAUSA, `onGrab()` — main lo llama al primer agarre/perfecto —
   recién arranca el reloj: el salto inicial y sus reintentos NO descuentan
-  tiempo; `update(dt)` corre el reloj solo si `started`, actualiza
-  `state.carrera.checkpoint` con `pisoNube(peak)` cada frame y dispara la caída
-  con `climb.startSlip(h, pisoNube(h), dur)` — el piso YA NO es siempre 0,
-  `finish()` SIEMPRE paga el botín) y `setMode()` (swap de alturas zen↔carrera,
-  entrando a carrera arranca en `state.carrera.checkpoint` en vez de 0,
-  + `climb.resetForMode()`). `volverAZona0()` es el "rebirth" suave: baja a la
-  tierra (altura y checkpoint del modo activo a 0) sin tocar hormigas/savia/
-  mejoras/récord — única forma de volver abajo de las nubes ya cruzadas.
+  tiempo; `update(dt)` corre el reloj solo si `started` y dispara la caída a la
+  tierra con `climb.startSlip(h, 0, dur)`, `finish()` SIEMPRE paga el botín) y
+  `setMode()` (swap de alturas zen↔carrera, la carrera SIEMPRE arranca desde la
+  tierra, + `climb.resetForMode()`). `volverAZona0()` es el "rebirth" suave:
+  baja la altura del modo activo a 0 sin tocar hormigas/savia/mejoras/récord.
   Importa `state` y `climb` (sin ciclos).
 - `cosmetics.js` — el Ropero: `SKINS` (11 pieles gratis, `skinHex(id)` con
   fallback a ocre) y `COSMETICS` (compra única con hormigas, slots
@@ -100,10 +97,7 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   cartas) e `idlePose`; el chucao queda siempre ocre.
 - `climb.js` — el corazón: nudos deterministas (`knotHeight(i)` memoizado,
   `knotIndexAbove(h)` búsqueda binaria), `ZONES` (7 zonas: 0/30/70/120/180/
-  260/360 que cambian verde/gapMul/savia/viento y ahora `cielo`+`noche` — el
-  fondo de cada zona, de la noche del monte al día y de vuelta a la noche
-  estrellada de la luna, tonos SIEMPRE fríos para no competir con la savia),
-  objeto `wind`
+  260/360 que cambian verde/gapMul/savia/viento), objeto `wind`
   (calm→warn→gust) y objeto `climb` (máquina de estados
   idle→charging→leaping→slipping). Constantes clave: `MAX_JUMP=6` m,
   `CHARGE_SPEED=0.55` pot/s, zona dulce ±0.55 m (±0.30 con ráfaga, ±0.38 con
@@ -123,19 +117,10 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   posicionado. Los textos
   flotantes (`#feedback`, `#zone-banner`) se esfuman durante la carga vía
   `filter` (sus animaciones pisan `opacity`). `leapDur` escala con la distancia del vuelo. Pérdidas: corto −1.2, pasado −3.0,
-  mala suerte −2.2 (clamp a 0). `climb.mods` = hooks inyectados por main
-  (lluvia/niebla: slipBonus/sweetMul). Eventos via `emit()`/`takeEvents()`.
-  **Nubes-barrera**: `NUBES = ZONES.slice(1).map(z => z.at)` — una nube gigante
-  por frontera de zona (30/70/120/180/260/360). `pisoNube(h)` devuelve la última
-  cruzada (ambos modos). Ninguna caída baja del piso (`arrive()` usa
-  `Math.max(piso, ...)` en las tres pérdidas). Cruzar una nube (grab con
-  `pisoAhora > pisoAntes`) emite `'nube'` con la zona nueva (un solo aviso: es
-  la frontera de zona) y dispara el **salto automático**: el escalador la
-  atraviesa a ciegas (`autoCloud`) y el juego lo sube solo al primer tronco
-  despejado por encima de `NUBE_CIEGA` (1,6 m del núcleo cegador) — seguro, sin
-  romper la racha, sin doble feedback. En carrera, cruzar fija
-  `state.carrera.checkpoint` para siempre (ver `carrera.js`); el rebirth lo
-  resetea.
+  mala suerte −2.2 (clamp a 0, el piso es siempre la tierra). `climb.mods` =
+  hooks inyectados por main (lluvia/niebla: slipBonus/sweetMul). Eventos via
+  `emit()`/`takeEvents()`. Cruzar una frontera de zona emite `'zone'` (banner
+  con el nombre de la zona).
 - `events.js` — `branchEvents`, un evento a la vez, cooldown 40-80 s, spawn
   por tabla de pesos: lluvia 0.30 (savia ×2, resbalón +4%, dulce ×0.92,
   ~20 s), chucao 0.25 (12 s posado; tocarlo = bono de hormigas), niebla 0.25
@@ -151,18 +136,13 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   récord/misiones (via `checkDerived()`, llamada por main solo cuando hubo
   eventos). Recompensa en hormigas, solo suma. UI: solapa Trofeos de la tienda.
 - `scene.js` — render canvas (contexto `{alpha:false}`). Cámara sigue
-  `climb.visualHeight()`; `CHAR_Y=0.7`, `VISIBLE_M=9`. Fondo por zona con
-  `skyAt(h)` (color + `night`, en AMBOS modos; transición en los ~5 m previos a
-  cada frontera). Dibuja: estrellas (`drawStars`, solo alturas nocturnas
-  ≥160 m — la zona 0 conserva su noche icónica SIN estrellas), follaje
-  parallax (sprites pre-renderizados), luciérnagas (se apagan de día vía
-  `night`), rama (dos verdes + contorno, verde por zona con `zoneVerde()`),
-  nudos (+anillo objetivo, savia con glow sprite), marcas cada 10 m, banderín
-  de récord, hormigas, overlays de carga (banda dulce + chevron + medidor),
-  escalador (paths por poses), chucao, enjambre, **nubes-barrera**
-  (`drawClouds`, DESPUÉS del escalador: se le pasa por debajo; blancas y densas
-  al acercarse, con fogonazo cegador `cloudCross()` al cruzar), partículas,
-  viento (Path2D), niebla, lluvia, viñeta (afloja de día vía `night`).
+  `climb.visualHeight()`; `CHAR_Y=0.7`, `VISIBLE_M=9`. Fondo pareja: la noche
+  del monte (`C.noche`) en toda la subida. Dibuja: follaje parallax (sprites
+  pre-renderizados), luciérnagas, rama (dos verdes + contorno, verde por zona
+  con `zoneVerde()`), nudos (+anillo objetivo, savia con glow sprite), marcas
+  cada 10 m, banderín de récord, hormigas, overlays de carga (banda dulce +
+  chevron + medidor), escalador (paths por poses), chucao, enjambre,
+  partículas, viento (Path2D), niebla, lluvia, viñeta.
   `scene.birdPos` y `scene.swarmPos` los usa main para el hit-test del tap.
 - `iconos.js` — SVG inline de la tienda: `ICONOS[id]` (uno por mejora, avance
   de savia y logro) + `ANT_SVG`/`SAP_SVG`/`TROFEO_SVG`. ViewBox 24, trazos

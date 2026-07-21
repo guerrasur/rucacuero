@@ -18,8 +18,6 @@ export const LOGROS = [
   { id: 'record360',    metric: 'best',      at: 360,  name: 'Filo de la luna',         desc: 'Llegá a 360 m de altura.',                   reward: 6000 },
   { id: 'misiones25',   metric: 'quests',    at: 25,   name: 'Mandadero incansable',    desc: 'Completá 25 misiones.',                      reward: 1500 },
   { id: 'misiones100',  metric: 'quests',    at: 100,  name: 'Leyenda del hormiguero',  desc: 'Completá 100 misiones.',                     reward: 6000 },
-  { id: 'nube1',        metric: 'nubes',     at: 1,    name: 'Cabeza en las nubes',     desc: 'Atravesá tu primera nube-checkpoint.',       reward: 700 },
-  { id: 'nubes5',       metric: 'nubes',     at: 5,    name: 'Pastor de nubes',         desc: 'Atravesá 5 nubes-checkpoint.',               reward: 3000 },
   { id: 'metros20000',  metric: 'metros',    at: 20000, name: 'El que no baja más',     desc: 'Ganá 20.000 m trepando en total.',           reward: 25000 },
   { id: 'perfectos500', metric: 'perfectos', at: 500,  name: 'Manos de ámbar',          desc: 'Hacé 500 saltos perfectos.',                 reward: 12000 },
   { id: 'cuento5',      metric: 'cuento',    at: 5,    name: 'El cuento completo',      desc: 'Terminá los 5 pasos de El cuento del monte.', reward: 2000 },
