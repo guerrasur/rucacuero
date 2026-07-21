@@ -29,10 +29,17 @@ const DASH_RECORD = [9, 8];
 const DASH_NONE = [];
 
 function hexLerp(a, b, t) {
-  const pa = [1, 3, 5].map(i => parseInt(a.slice(i, i + 2), 16));
-  const pb = [1, 3, 5].map(i => parseInt(b.slice(i, i + 2), 16));
-  const m = pa.map((v, i) => Math.round(v + (pb[i] - v) * t));
-  return `rgb(${m[0]},${m[1]},${m[2]})`;
+  // sin .map: se llama cada frame en drawBranch, no conviene alocar arrays
+  const ar = parseInt(a.slice(1, 3), 16);
+  const ag = parseInt(a.slice(3, 5), 16);
+  const ab = parseInt(a.slice(5, 7), 16);
+  const br = parseInt(b.slice(1, 3), 16);
+  const bg = parseInt(b.slice(3, 5), 16);
+  const bb = parseInt(b.slice(5, 7), 16);
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bl})`;
 }
 
 // Verde de la rama según la zona, con transición suave en los 6 m
@@ -72,6 +79,11 @@ export class Scene {
     this.glowSprite = this.makeGlowSprite();
     this.fogSprite = this.makeFogSprite();
     this.hail = []; // piedritas activas del granizo
+    // buffers reusables del contorno de la rama (evitan alocar arrays por frame)
+    this._bLx = [];
+    this._bLy = [];
+    this._bRx = [];
+    this._bRy = [];
     this.leafDeep = [this.makeLeafSprite(C.nocheDeep, false), this.makeLeafSprite(C.nocheDeep, true)];
     this.leafSoft = [this.makeLeafSprite(C.nocheSoft, false), this.makeLeafSprite(C.nocheSoft, true)];
     this.resize();
@@ -260,21 +272,28 @@ export class Scene {
   drawBranch() {
     const { ctx } = this;
     const { top, bot } = this.branchSpan();
-    // con zoom el tramo visible crece: el paso escala para no explotar en puntos
+    // el paso escala con el tramo visible para no explotar en puntos
     const step = Math.max(0.3, (top - bot) / 240);
-    const L = [];
-    const R = [];
+    // buffers planos reusados entre frames (nada de arrays de [x,y] por frame)
+    const lx = this._bLx;
+    const ly = this._bLy;
+    const rx = this._bRx;
+    const ry = this._bRy;
+    let n = 0;
     for (let hh = top; hh >= bot; hh -= step) {
       const bx = this.branchX(hh);
       const y = this.yOf(hh);
-      L.push([bx - this.bw / 2 + this.edgeWobble(hh, 1.3), y]);
-      R.push([bx + this.bw / 2 + this.edgeWobble(hh, 4.8), y]);
+      lx[n] = bx - this.bw / 2 + this.edgeWobble(hh, 1.3);
+      ly[n] = y;
+      rx[n] = bx + this.bw / 2 + this.edgeWobble(hh, 4.8);
+      ry[n] = y;
+      n++;
     }
 
     ctx.beginPath();
-    ctx.moveTo(L[0][0], L[0][1]);
-    for (const [x, y] of L) ctx.lineTo(x, y);
-    for (let i = R.length - 1; i >= 0; i--) ctx.lineTo(R[i][0], R[i][1]);
+    ctx.moveTo(lx[0], ly[0]);
+    for (let i = 0; i < n; i++) ctx.lineTo(lx[i], ly[i]);
+    for (let i = n - 1; i >= 0; i--) ctx.lineTo(rx[i], ry[i]);
     ctx.closePath();
     ctx.fillStyle = zoneVerde(this.cameraH);
     ctx.fill();
@@ -287,8 +306,8 @@ export class Scene {
     ctx.save();
     ctx.clip();
     ctx.beginPath();
-    ctx.moveTo(R[0][0] - 7, R[0][1]);
-    for (const [x, y] of R) ctx.lineTo(x - 7, y);
+    ctx.moveTo(rx[0] - 7, ry[0]);
+    for (let i = 0; i < n; i++) ctx.lineTo(rx[i] - 7, ry[i]);
     ctx.lineWidth = 15;
     ctx.strokeStyle = C.musgo;
     ctx.globalAlpha = 0.5;
@@ -303,13 +322,13 @@ export class Scene {
       ctx.lineDashOffset = -((this.cameraH * this.ppm) % 47) + f * 31;
       ctx.beginPath();
       let first = true;
-      for (let i = 0; i < L.length; i++) {
+      for (let i = 0; i < n; i++) {
         const hh = top - i * step;
-        const x = L[i][0] + (R[i][0] - L[i][0]) * f + Math.sin(hh * 3.3 + f * 13) * 3.5;
+        const x = lx[i] + (rx[i] - lx[i]) * f + Math.sin(hh * 3.3 + f * 13) * 3.5;
         if (first) {
-          ctx.moveTo(x, L[i][1]);
+          ctx.moveTo(x, ly[i]);
           first = false;
-        } else ctx.lineTo(x, L[i][1]);
+        } else ctx.lineTo(x, ly[i]);
       }
       ctx.stroke();
     }
