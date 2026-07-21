@@ -75,6 +75,9 @@ export function buy(def) {
 // La run en curso. No persiste: cerrar el juego a mitad de carrera la termina.
 export const run = {
   active: false,
+  // el reloj arranca recién con el PRIMER agarre: el salto inicial (y sus
+  // reintentos si te quedás corto) no descuenta tiempo
+  started: false,
   left: 0,
   peak: 0,
   falling: false,
@@ -89,14 +92,20 @@ export const run = {
     return this.queue.splice(0);
   },
 
-  // el primer salto arranca el reloj
+  // el primer salto arma la carrera; el reloj queda en pausa hasta el agarre
   onPress() {
     if (state.mode !== 'carrera' || this.active) return;
     this.active = true;
+    this.started = false;
     this.left = timeTotal();
     this.peak = 0;
     this.falling = false;
     this.emit('run-start', { total: this.left });
+  },
+
+  // main lo llama al primer agarre/perfecto: recién ahí corre el tiempo
+  onGrab() {
+    if (this.active && !this.started) this.started = true;
   },
 
   // durante la caída y el tumbado no se puede saltar (main bloquea el input)
@@ -124,8 +133,9 @@ export const run = {
     // vuelve más abajo, ni en esta caída ni en la próxima run
     state.carrera.checkpoint = Math.max(state.carrera.checkpoint, pisoNube(this.peak));
     if (!this.falling) {
-      this.left = Math.max(0, this.left - dt);
-      if (this.left <= 0) {
+      // el reloj recién corre una vez agarrada la primera rama
+      if (this.started) this.left = Math.max(0, this.left - dt);
+      if (this.started && this.left <= 0) {
         // se acabó el aire: si venía cargando, la carga se pierde;
         // un salto o resbalón en vuelo termina primero (el pico cuenta)
         if (climb.phase === 'charging') {
@@ -156,12 +166,30 @@ export const run = {
     state.carrera.best = Math.max(state.carrera.best, this.peak);
     this.emit('run-end', { peak: this.peak, reward: r });
     this.active = false;
+    this.started = false;
     this.falling = false;
     this.left = 0;
     save();
     return r;
   },
 };
+
+// "Rebirth" suave: bajar a la tierra y volver a empezar desde la zona 0, sin
+// perder hormigas, savia, mejoras ni récord. Resetea la altura del modo activo
+// (y el checkpoint de carrera, que es lo que la hacía arrancar arriba). Es la
+// única forma de volver abajo de las nubes ya cruzadas: son piso para siempre.
+export function volverAZona0() {
+  if (state.mode === 'carrera') {
+    run.finish(); // si había una run, paga lo ganado (nada se pierde)
+    run.ground = null;
+    state.carrera.checkpoint = 0;
+  } else {
+    state.zen.height = 0;
+  }
+  state.height = 0;
+  climb.resetForMode();
+  save();
+}
 
 // Cambio de modo: guarda la altura del modo saliente y carga la del entrante.
 export function setMode(m) {

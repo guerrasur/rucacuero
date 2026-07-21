@@ -1,7 +1,7 @@
 // Ruca Cuero — loop principal y wiring de input.
 import { state, load, initAutosave } from './state.js';
 import * as economy from './economy.js';
-import { climb, wind } from './climb.js';
+import { climb, wind, knotHeight, nextKnotIndex, knotIndexAbove, pisoNube, NUBES } from './climb.js';
 import { Scene } from './scene.js';
 import * as ui from './ui.js';
 import * as audio from './audio.js';
@@ -100,6 +100,7 @@ function frame(now) {
     ui.onClimbEvent(ev);
     switch (ev.type) {
       case 'grab':
+        carrera.run.onGrab(); // el reloj recién corre con la primera rama
         audio.grab();
         scene.burst('bark');
         if (zen) {
@@ -114,6 +115,7 @@ function frame(now) {
         break;
       case 'perfect':
       case 'chain':
+        carrera.run.onGrab(); // el reloj recién corre con la primera rama
         // la racha se escucha: cada perfecto encadenado sube un escalón
         audio.perfect(ev.streak || climb.perfectStreak || 1);
         scene.burst('spark');
@@ -149,8 +151,10 @@ function frame(now) {
         audio.zoneFanfare();
         break;
       case 'nube':
-        // checkpoint: la nube cruzada queda como piso de la etapa
-        ui.showBanner('¡Atravesaste la nube!', `nuevo piso: ${ev.piso} m — de acá no se baja`);
+        // cruzar una nube-barrera: se abre un cielo nuevo y la nube queda
+        // como piso para siempre (el rebirth es la única forma de volver abajo)
+        scene.cloudCross();
+        ui.showBanner(ev.zone ? ev.zone.name : '¡Atravesaste la nube!', `cielo nuevo · piso ${ev.piso} m, de acá no bajás`);
         audio.nubeChime();
         logros.bump('nubes');
         break;
@@ -271,4 +275,7 @@ if ('serviceWorker' in navigator && (!esLocal || new URLSearchParams(location.se
 }
 
 // acceso para debug y pruebas automatizadas
-window.__ruca = { state, climb, wind, economy, events: branchEvents, quests, logros, cosmetics, carrera, scene };
+window.__ruca = {
+  state, climb, wind, economy, events: branchEvents, quests, logros, cosmetics, carrera, scene,
+  knotHeight, nextKnotIndex, knotIndexAbove, pisoNube, NUBES,
+};

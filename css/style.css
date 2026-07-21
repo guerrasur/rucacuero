@@ -743,6 +743,40 @@ body.mode-carrera .tab[data-id="hormigas"].sel { color: var(--ocre); border-bott
   cursor: pointer;
 }
 
+/* "rebirth" discreto al pie de Trofeos: bajar a la zona 0. Apagado por
+   defecto (no compite con Compartir); al armarse late en ocre de aviso. */
+#rebirth-btn {
+  align-self: stretch;
+  font-family: var(--texto);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 13px;
+  background: transparent;
+  border: 2px solid rgba(242, 232, 206, .16);
+  color: rgba(242, 232, 206, .58);
+  cursor: pointer;
+  text-align: center;
+  transition: transform .1s, border-color .2s, color .2s;
+}
+#rebirth-btn:active { transform: scale(.97); }
+#rebirth-btn.armado {
+  border-color: var(--ocre);
+  color: var(--ocre);
+  animation: rebirth-late 1s ease-in-out infinite;
+}
+@keyframes rebirth-late {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .58; }
+}
+#rebirth-nota {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: rgba(242, 232, 206, .4);
+  max-width: 34em;
+}
+body.menos-mov #rebirth-btn.armado { animation: none; }
+
 /* ---------- menos movimiento ----------
    la sacudida y las partículas se recortan en canvas (scene.js consulta
    menosMovimiento()); acá se aquietan las animaciones del DOM. ui.js pone
