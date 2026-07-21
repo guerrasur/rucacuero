@@ -145,7 +145,7 @@ export function init() {
     carrera.volverAZona0();
     closeShop(); // volvés al juego y ves la zona 0 (el HUD se actualiza solo)
     showBanner('De vuelta en la tierra', 'zona 0 · a trepar de nuevo');
-    audio.nubeChime();
+    audio.rebirthChime();
   });
   document.body.classList.toggle('menos-mov', menosMovimiento());
   syncMuteIcon();
@@ -539,7 +539,6 @@ function refreshShop(force) {
     ['chucaos espantados', fmtInt(state.life.chucaos)],
     ['lluvias y rocíos aguantados', fmtInt(state.life.lluvias)],
     ['enjambres tocados', fmtInt(state.life.enjambres)],
-    ['nubes atravesadas', fmtInt(state.life.nubes)],
     ['hormigas gastadas', fmtInt(state.life.gastadas)],
   ];
   const vidaKey = vida.map(v => v[1]).join('|');
