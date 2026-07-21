@@ -8,10 +8,6 @@ export const MAX_JUMP = 6; // metros de salto a carga máxima
 export const CHARGE_SPEED = 0.55; // potencia por segundo (carga completa ~1,8 s)
 export const PERFECT_W = 0.14; // metros: micro-zona de soltada perfecta
 
-// Racha de perfectos: cada soltada perfecta seguida sube el multiplicador de
-// metros ganados. Cualquier soltada no perfecta (aunque agarre) la corta.
-export const STREAK_MULTS = [1, 1.1, 1.2, 1.3, 1.5, 1.7, 2];
-
 const SWEET_BASE = 0.55; // semiancho de la zona dulce en metros
 const SWEET_WIND = 0.3; // semiancho durante ráfaga
 const LOSS_SHORT = 1.2;
@@ -19,10 +15,11 @@ const LOSS_OVER = 3.0;
 const LOSS_LUCK = 2.2;
 const LEAP_TIME = 0.5;
 const SLIP_TIME = 0.7;
-// carrera: base exponencial de la racha (cada perfecto multiplica el salto)
-const RUN_STREAK_BASE = 1.25;
-const RUN_STREAK_ECO = 0.03; // extra por nivel de "eco del perfecto"
-const RUN_RESORTE = 0.08; // +salto base por nivel de "piernas de resorte"
+// Racha de perfectos (ambos modos): cada perfecto encadenado multiplica los
+// metros ganados, exponencial y sin tope. Cualquier soltada no perfecta la corta.
+const STREAK_BASE = 1.25;
+const RUN_STREAK_ECO = 0.03; // carrera: extra por nivel de "eco del perfecto"
+const RUN_RESORTE = 0.08; // carrera: +salto base por nivel de "piernas de resorte"
 // El próximo salto nunca exige menos del 50% de la carga: un nudo más cerca
 // que esto se saltea (nada de perder la racha por un tronco mal posicionado).
 const MIN_TARGET_GAP = MAX_JUMP * 0.5;
@@ -157,17 +154,17 @@ export const climb = {
     return e;
   },
 
-  // En carrera los metros GANADOS al agarrar se multiplican: mejora "resorte"
-  // × racha de perfectos exponencial y SIN tope (1.25^racha, más con "eco").
-  // La puntería queda siempre a escala base (el árbol no se mueve al apuntar):
-  // el salto simplemente te eleva más, pasando ramas enteras si la racha da.
+  // Los metros GANADOS al agarrar se multiplican por la racha de perfectos,
+  // exponencial y SIN tope (1.25^racha); en carrera además suman las mejoras
+  // "resorte" (salto base) y "eco" (base de la racha). La puntería queda
+  // siempre a escala base (el árbol no se mueve al apuntar): el salto
+  // simplemente te eleva más, pasando ramas enteras si la racha da.
+  streakBase() {
+    return STREAK_BASE + (state.mode === 'carrera' ? RUN_STREAK_ECO * state.carrera.upgrades.eco : 0);
+  },
   gainMul() {
-    if (state.mode !== 'carrera') return 1;
-    const u = state.carrera.upgrades;
-    return (
-      (1 + RUN_RESORTE * u.resorte) *
-      Math.pow(RUN_STREAK_BASE + RUN_STREAK_ECO * u.eco, this.perfectStreak)
-    );
+    const base = state.mode === 'carrera' ? 1 + RUN_RESORTE * state.carrera.upgrades.resorte : 1;
+    return base * Math.pow(this.streakBase(), this.perfectStreak);
   },
   sweetW() {
     // "abrigo de brisa": la ráfaga angosta menos la zona dulce
@@ -216,31 +213,20 @@ export const climb = {
       // y el vuelo anima suave hasta la altura final.
       if (this.perfect) {
         this.perfectStreak += 1;
-        if (state.mode === 'carrera') {
-          // el badge ×mult muestra el multiplicador de la racha
-          this.streakMult = Math.pow(
-            RUN_STREAK_BASE + RUN_STREAK_ECO * state.carrera.upgrades.eco,
-            this.perfectStreak
-          );
-        } else {
-          // zen: multiplicador acotado + impulso extra al aterrizar
-          // (solo metros de más — jamás resta)
-          this.streakMult = STREAK_MULTS[Math.min(this.perfectStreak, STREAK_MULTS.length - 1)];
-          this.leapTo += (kH - this.jumpStart) * (this.streakMult - 1);
-        }
+        // el badge ×mult muestra el multiplicador de la racha
+        this.streakMult = Math.pow(this.streakBase(), this.perfectStreak);
+        this.emit('perfect-release');
       } else {
         this.breakStreak();
       }
-      // carrera: los metros ganados se multiplican — el salto te eleva de
-      // largo pasando ramas enteras. El aterrizaje se ancla SIEMPRE al nudo
-      // más cercano: caer flotando entre ramas dejaba al próximo nudo a
+      // Los metros ganados se multiplican — el salto te eleva de largo
+      // pasando ramas enteras. El aterrizaje se ancla SIEMPRE al nudo más
+      // cercano: caer flotando entre ramas dejaba al próximo nudo a
       // centímetros y regalaba rachas perdidas (el salteo no alcanzaba).
-      if (state.mode === 'carrera') {
-        const raw = this.jumpStart + (kH - this.jumpStart) * this.gainMul();
-        const above = knotIndexAbove(raw);
-        const belowH = knotHeight(above - 1);
-        this.leapTo = knotHeight(above) - raw < raw - belowH ? knotHeight(above) : belowH;
-      }
+      const raw = this.jumpStart + (kH - this.jumpStart) * this.gainMul();
+      const above = knotIndexAbove(raw);
+      const belowH = knotHeight(above - 1);
+      this.leapTo = knotHeight(above) - raw < raw - belowH ? knotHeight(above) : belowH;
     }
     // los vuelos gigantes de la racha se toman un poco más de tiempo en el aire
     this.leapDur = LEAP_TIME * (1 + Math.min(2, Math.abs(this.leapTo - this.jumpStart) / 25));

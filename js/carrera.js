@@ -6,7 +6,11 @@
 import { state, save } from './state.js';
 import { climb } from './climb.js';
 
-export const RUN_TIME = 5; // segundos base de cada carrera (el reloj la estira hasta 60)
+export const RUN_TIME = 5; // segundos base de cada carrera (el reloj la estira hasta 90)
+
+// Tiempo total por nivel de "reloj de savia": arranca suave (5→7 s) y los
+// escalones crecen para que cada compra se sienta más grande, hasta 90 s MÁX.
+const RELOJ_TIEMPOS = [RUN_TIME, 7, 9.5, 12.5, 16, 20, 25, 31, 38, 46, 56, 70, 90];
 
 // Mejoras del modo carrera, se pagan con hormigas coloradas.
 export const R_UPGRADES = [
@@ -21,10 +25,10 @@ export const R_UPGRADES = [
   {
     id: 'reloj',
     name: 'Reloj de savia',
-    desc: 'La gota tarda más en caer. +5,5 s de carrera por nivel, hasta 60 s.',
+    desc: 'La gota tarda más en caer. Cada nivel estira la carrera, hasta 90 s.',
     baseCost: 40,
     growth: 1.8,
-    max: 10,
+    max: 12,
   },
   {
     id: 'eco',
@@ -44,9 +48,8 @@ export const R_UPGRADES = [
   },
 ];
 
-// 5 s pelados al arrancar; cada nivel de reloj suma 5,5 s hasta el tope de 60
 export function timeTotal() {
-  return RUN_TIME + 5.5 * state.carrera.upgrades.reloj;
+  return RELOJ_TIEMPOS[Math.min(state.carrera.upgrades.reloj, RELOJ_TIEMPOS.length - 1)];
 }
 
 export function upgradeCost(def) {

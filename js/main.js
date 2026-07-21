@@ -54,7 +54,7 @@ window.addEventListener('pointerup', () => climb.release());
 window.addEventListener('pointercancel', () => climb.release());
 window.addEventListener('keydown', e => {
   if (e.code === 'Space' && !e.repeat) {
-    if (ui.roperoOpen()) return; // dentro del ropero no se salta
+    if (ui.menuAbierto()) return; // dentro de un menú (tienda/ropero) no se salta
     // sin esto, Espacio "clickea" el último botón enfocado (mute/tienda)
     e.preventDefault();
     ui.hideHint();
@@ -105,6 +105,10 @@ function frame(now) {
           quests.note('meters', ev.gain);
         }
         logros.bump('metros', ev.gain);
+        break;
+      case 'perfect-release':
+        // feedback inmediato: el destello sale al soltar, no al aterrizar
+        scene.perfectFlash();
         break;
       case 'perfect':
       case 'chain':

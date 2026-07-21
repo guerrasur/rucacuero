@@ -17,10 +17,16 @@ import * as logros from './logros.js';
 import * as cosmetics from './cosmetics.js';
 import * as carrera from './carrera.js';
 import { drawProbador, drawCosmeticIcon } from './scene.js';
+import { ICONOS, ANT_SVG, SAP_SVG, TROFEO_SVG } from './iconos.js';
 
 const $ = id => document.getElementById(id);
-const ANT_SVG =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="17" rx="3.2" ry="2.5" fill="currentColor"/><circle cx="12" cy="11.8" r="1.9" fill="currentColor"/><circle cx="12" cy="7.6" r="2.5" fill="currentColor"/><path d="M10.7 5.9 9.2 3.8M13.3 5.9 14.8 3.8M9.9 12l-3-1M14.1 12l3-1M9.7 16l-2.9 1.5M14.3 16l2.9 1.5M10.2 18.8 8.4 21.2M13.8 18.8 15.6 21.2"/></g></svg>';
+
+// solapas de la tienda: se accede a cada sección tocando su icono
+const SOLAPAS = [
+  { id: 'hormigas', label: 'Hormigas', icon: ANT_SVG },
+  { id: 'savia', label: 'Savia', icon: SAP_SVG },
+  { id: 'trofeos', label: 'Trofeos', icon: TROFEO_SVG },
+];
 
 let els = {};
 let shopOpen = false;
@@ -31,6 +37,7 @@ let lastShopRefresh = 0;
 let lastRoperoRefresh = 0;
 const logroCache = {}; // último texto escrito por fila de logro (disciplina DOM)
 const roperoCache = {}; // último estado escrito por carta de cosmético
+const shopCache = {}; // chips de moneda de la tienda
 
 const fmtInt = n => Math.floor(n).toLocaleString('es-AR');
 const fmtH = h =>
@@ -52,8 +59,12 @@ export function init() {
     hint: $('hint'),
     feedback: $('feedback'),
     shop: $('shop'),
-    scrim: $('scrim'),
     shopBtn: $('shop-btn'),
+    shopCerrar: $('shop-cerrar'),
+    shopTabs: $('shop-tabs'),
+    shopScroll: $('shop-scroll'),
+    shopAnts: $('shop-ants'),
+    shopSap: $('shop-sap'),
     upgradeList: $('upgrade-list'),
     unlockList: $('unlock-list'),
     logrosList: $('logros-list'),
@@ -76,15 +87,15 @@ export function init() {
 
   // blur tras cada click: un botón enfocado se re-activa con Espacio (salto)
   els.shopBtn.addEventListener('click', () => {
-    toggleShop(!shopOpen);
+    openShop();
     els.shopBtn.blur();
   });
+  els.shopCerrar.addEventListener('click', () => closeShop());
   els.roperoBtn.addEventListener('click', () => {
     openRopero();
     els.roperoBtn.blur();
   });
   els.roperoCerrar.addEventListener('click', () => closeRopero());
-  els.scrim.addEventListener('click', () => toggleShop(false));
   els.muteBtn.addEventListener('click', () => {
     audio.ensure();
     audio.setMuted(!audio.isMuted());
@@ -101,6 +112,7 @@ export function init() {
     els.modoBtn.blur();
   });
   syncMuteIcon();
+  buildTabs();
   buildShop();
   buildRopero();
   syncModeUI();
@@ -131,28 +143,54 @@ function syncMuteIcon() {
   els.muteBtn.setAttribute('aria-label', m ? 'Activar sonido' : 'Silenciar sonido');
 }
 
-function toggleShop(open) {
-  shopOpen = open;
-  els.shop.hidden = false;
-  els.scrim.hidden = false;
-  requestAnimationFrame(() => {
-    els.shop.classList.toggle('open', open);
-    els.scrim.classList.toggle('open', open);
-  });
-  if (!open) {
-    setTimeout(() => {
-      if (!shopOpen) {
-        els.shop.hidden = true;
-        els.scrim.hidden = true;
-      }
-    }, 320);
+// la tienda es un menú de pantalla completa (como el ropero) dividida en
+// solapas: Hormigas (mejoras del modo activo), Savia (avances) y Trofeos.
+let solapaActiva = 'hormigas';
+
+function buildTabs() {
+  els.shopTabs.innerHTML = '';
+  for (const s of SOLAPAS) {
+    const b = document.createElement('button');
+    b.className = 'tab';
+    b.dataset.id = s.id;
+    b.setAttribute('aria-label', s.label);
+    b.innerHTML = `${s.icon}<span>${s.label}</span>`;
+    b.addEventListener('click', () => {
+      setSolapa(s.id);
+      b.blur();
+    });
+    els.shopTabs.appendChild(b);
   }
+  setSolapa(solapaActiva);
+}
+
+function setSolapa(id) {
+  solapaActiva = id;
+  for (const b of els.shopTabs.children) b.classList.toggle('sel', b.dataset.id === id);
+  for (const s of SOLAPAS) $(`solapa-${s.id}`).hidden = s.id !== id;
+  els.shopScroll.scrollTop = 0;
+}
+
+function openShop() {
+  if (roperoAbierto) closeRopero();
+  shopOpen = true;
+  els.shop.hidden = false;
+  requestAnimationFrame(() => els.shop.classList.add('open'));
+  refreshShop(true);
+}
+
+function closeShop() {
+  shopOpen = false;
+  els.shop.classList.remove('open');
+  setTimeout(() => {
+    if (!shopOpen) els.shop.hidden = true;
+  }, 300);
 }
 
 // el ropero es un menú de pantalla completa: tapa el juego hasta volver.
 // El probador arranca con lo puesto de verdad.
 function openRopero() {
-  if (shopOpen) toggleShop(false);
+  if (shopOpen) closeShop();
   roperoAbierto = true;
   probador.sombrero = state.cosmetics.sombrero;
   probador.chiripa = state.cosmetics.chiripa;
@@ -169,9 +207,9 @@ function closeRopero() {
   }, 300);
 }
 
-// main la usa para no disparar saltos con Espacio dentro del menú
-export function roperoOpen() {
-  return roperoAbierto;
+// main la usa para no disparar saltos con Espacio dentro de un menú
+export function menuAbierto() {
+  return roperoAbierto || shopOpen;
 }
 
 function buildShop() {
@@ -182,6 +220,7 @@ function buildShop() {
     card.className = 'card';
     card.dataset.id = def.id;
     card.innerHTML =
+      `<div class="icono-svg">${ICONOS[def.id] || ''}</div>` +
       `<div class="card-info"><h3>${def.name}<span class="lvl"></span></h3><p>${def.desc}</p></div>` +
       `<button class="buy">${ANT_SVG}<span class="cost"></span></button>`;
     card.querySelector('.buy').addEventListener('click', () => {
@@ -204,6 +243,7 @@ function buildShop() {
     card.className = 'card';
     card.dataset.id = def.id;
     card.innerHTML =
+      `<div class="icono-svg">${ICONOS[def.id] || ''}</div>` +
       `<div class="card-info"><h3>${def.name}<span class="lvl"></span></h3><p>${def.desc}</p></div>` +
       `<button class="buy">${ANT_SVG}<span class="cost"></span></button>`;
     card.querySelector('.buy').addEventListener('click', () => {
@@ -224,6 +264,7 @@ function buildShop() {
     row.className = 'unlock';
     row.dataset.id = u.id;
     row.innerHTML =
+      `<div class="icono-svg savia">${ICONOS[u.id] || ''}</div>` +
       `<div class="at">${u.at}</div>` +
       `<div><h3>${u.name}</h3><p>${u.desc}</p></div>` +
       `<div class="check"></div>`;
@@ -236,6 +277,7 @@ function buildShop() {
     row.className = 'unlock logro';
     row.dataset.id = def.id;
     row.innerHTML =
+      `<div class="icono-svg">${ICONOS[def.id] || ''}</div>` +
       `<div class="at prog"></div>` +
       `<div><h3>${def.name}</h3><p>${def.desc} +${fmtInt(def.reward)} hormigas.</p></div>` +
       `<div class="check"></div>`;
@@ -375,6 +417,18 @@ function refreshShop(force) {
   const now = performance.now();
   if (!force && now - lastShopRefresh < 250) return;
   lastShopRefresh = now;
+
+  // chips del header: moneda del modo activo + savia
+  const chipAnts = fmtInt(state.mode === 'carrera' ? state.carrera.ants : state.ants);
+  if (shopCache.ants !== chipAnts) {
+    shopCache.ants = chipAnts;
+    els.shopAnts.textContent = chipAnts;
+  }
+  const chipSap = fmtInt(state.sap);
+  if (shopCache.sap !== chipSap) {
+    shopCache.sap = chipSap;
+    els.shopSap.textContent = chipSap;
+  }
 
   // si "mielada" se desbloqueó después de construir la tienda, reconstruir
   const visible = els.upgradeList.children.length;
