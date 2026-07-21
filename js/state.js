@@ -15,9 +15,10 @@ export const state = {
   // hogar persistente del progreso zen mientras jugás carrera
   zen: { height: 0, best: 0 },
   // modo carrera: hormigas coloradas, récord y mejoras propias.
-  // La altura de una run arranca en `checkpoint`: 0 hasta atravesar la
-  // primera nube gigante (ver NUBES en climb.js), después el piso de la
-  // última nube cruzada — para siempre, entre runs y entre sesiones.
+  // La altura de una run arranca en `checkpoint`: 0 hasta atravesar la primera
+  // nube-barrera (frontera de zona, ver NUBES en climb.js), después el piso de
+  // la última nube cruzada — para siempre, entre runs y entre sesiones. El
+  // "rebirth" (carrera.volverAZona0) lo devuelve a 0.
   carrera: { ants: 0, best: 0, checkpoint: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0 } },
   upgrades: { feromonas: 0, reina: 0, nudos: 0, mielada: 0, ofrenda: 0 },
   unlocks: [],

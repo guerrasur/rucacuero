@@ -33,15 +33,19 @@ export function hash(i) {
 }
 
 // Zonas de la rama: a medida que subís cambia la corteza, la distancia entre
-// nudos, cuánta savia rezuma y qué tan seguido sopla el viento.
+// nudos, cuánta savia rezuma, qué tan seguido sopla el viento y el CIELO de
+// fondo — cada frontera de zona lleva una nube-barrera que, al cruzarla,
+// abre un cielo nuevo (`cielo`). `noche` (0 día pleno → 1 noche cerrada) gradúa
+// luciérnagas, estrellas y viñeta. Tonos SIEMPRE fríos: la savia es el único
+// acento cálido, así que ningún cielo compite con ella.
 export const ZONES = [
-  { at: 0,   name: 'Corteza baja',   verde: '#7FA636', gapMul: 1.0,  sap: 0.45, sweetMul: 1,    calm: [6, 11],   gust: [2.0, 2.8] },
-  { at: 30,  name: 'Corteza pelada', verde: '#95A03C', gapMul: 1.12, sap: 0.18, sweetMul: 1,    calm: [5, 9],    gust: [2.0, 2.8] },
-  { at: 70,  name: 'Copa ventosa',   verde: '#699F55', gapMul: 1.04, sap: 0.35, sweetMul: 0.95, calm: [3.5, 6.5], gust: [2.4, 3.4] },
-  { at: 120, name: 'Rama joven',     verde: '#8AB33D', gapMul: 0.94, sap: 0.55, sweetMul: 0.95, calm: [4.5, 8],  gust: [2.0, 2.8] },
-  { at: 180, name: 'Cielo de hojas', verde: '#7BAA69', gapMul: 1.15, sap: 0.3,  sweetMul: 0.9,  calm: [3, 5.5],  gust: [2.6, 3.6] },
-  { at: 260, name: 'Enramada del alerce', verde: '#5E8F5C', gapMul: 1.24, sap: 0.4,  sweetMul: 0.85, calm: [2.5, 4.5], gust: [2.8, 3.8] },
-  { at: 360, name: 'Filo de la luna',     verde: '#93A98B', gapMul: 1.32, sap: 0.55, sweetMul: 0.8,  calm: [2, 4],     gust: [3, 4.2] },
+  { at: 0,   name: 'Corteza baja',        verde: '#7FA636', gapMul: 1.0,  sap: 0.45, sweetMul: 1,    calm: [6, 11],    gust: [2.0, 2.8], cielo: '#131B12', noche: 1 },
+  { at: 30,  name: 'Corteza pelada',      verde: '#95A03C', gapMul: 1.12, sap: 0.18, sweetMul: 1,    calm: [5, 9],     gust: [2.0, 2.8], cielo: '#8AA9B0', noche: 0.12 },
+  { at: 70,  name: 'Copa ventosa',        verde: '#699F55', gapMul: 1.04, sap: 0.35, sweetMul: 0.95, calm: [3.5, 6.5], gust: [2.4, 3.4], cielo: '#A9C6CE', noche: 0 },
+  { at: 120, name: 'Rama joven',          verde: '#8AB33D', gapMul: 0.94, sap: 0.55, sweetMul: 0.95, calm: [4.5, 8],   gust: [2.0, 2.8], cielo: '#7D9DAE', noche: 0.28 },
+  { at: 180, name: 'Cielo de hojas',      verde: '#7BAA69', gapMul: 1.15, sap: 0.3,  sweetMul: 0.9,  calm: [3, 5.5],   gust: [2.6, 3.6], cielo: '#5E6E8C', noche: 0.55 },
+  { at: 260, name: 'Enramada del alerce', verde: '#5E8F5C', gapMul: 1.24, sap: 0.4,  sweetMul: 0.85, calm: [2.5, 4.5], gust: [2.8, 3.8], cielo: '#3F3E63', noche: 0.8 },
+  { at: 360, name: 'Filo de la luna',     verde: '#93A98B', gapMul: 1.32, sap: 0.55, sweetMul: 0.8,  calm: [2, 4],     gust: [3, 4.2],   cielo: '#191D38', noche: 0.95 },
 ];
 
 export function zoneAt(h) {
@@ -50,13 +54,18 @@ export function zoneAt(h) {
   return z;
 }
 
-// ---------- checkpoint-nube ----------
-// Nubes gigantes en las alturas límite. Al atravesarlas quedan como PISO:
-// ninguna caída (corto/pasado/mala suerte/fin del reloj) te baja de la
-// última nube cruzada. Corre en ambos modos; en carrera además el piso
-// alcanzado se guarda en `state.carrera.checkpoint` y la PRÓXIMA carrera
-// arranca desde ahí en vez de la tierra (ver `carrera.js`).
-export const NUBES = [1000, 500000, 1000000];
+// ---------- nubes-barrera (una por frontera de zona) ----------
+// Cada zona (salvo la 0) arranca con una nube gigante que la separa de la de
+// abajo. Al atravesarla queda como PISO: ninguna caída (corto/pasado/mala
+// suerte/fin del reloj) te baja de la última nube cruzada. Corre en ambos
+// modos; en carrera además el piso alcanzado se guarda en
+// `state.carrera.checkpoint` y la PRÓXIMA carrera arranca desde ahí en vez de
+// la tierra (ver `carrera.js`). El "rebirth" del ropero/tienda vuelve a 0.
+export const NUBES = ZONES.slice(1).map(z => z.at);
+// metros del núcleo cegador de la nube: al cruzarla el escalador la atraviesa
+// sin ver y el juego lo deposita recién en el primer tronco despejado por
+// encima de esta franja (salto automático, ver arrive()).
+export const NUBE_CIEGA = 1.6;
 export function pisoNube(h = state.height) {
   let p = 0;
   for (const n of NUBES) if (h >= n) p = n;
@@ -149,6 +158,7 @@ export const climb = {
   slipTo: 0,
   result: null, // 'grab' | 'short' | 'over'
   chainSafe: false,
+  autoCloud: false, // el vuelo en curso es la travesía automática de una nube
   perfectStreak: 0,
   streakMult: 1,
   jumpsSinceResin: RESIN_EVERY,
@@ -192,6 +202,7 @@ export const climb = {
     if (this.phase !== 'idle') return;
     this.phase = 'charging';
     this.power = 0;
+    this.autoCloud = false;
     // si el próximo nudo quedó pegado (p. ej. tras un resbalón) no hay tiempo
     // de reaccionar: se apunta directo al siguiente, siempre que sea alcanzable
     let t = nextKnotIndex(state.height);
@@ -282,23 +293,61 @@ export const climb = {
       }
     }
     const gained = this.leapTo - state.height;
-    // ¿este agarre cruzó una nube por primera vez en la subida?
+    // ¿este agarre cruzó una nube-barrera en la subida?
     const pisoAntes = pisoNube(state.height);
     state.height = this.leapTo;
     const pisoAhora = pisoNube(state.height);
-    if (pisoAhora > pisoAntes) this.emit('nube', { piso: pisoAhora });
+    const cruzoNube = pisoAhora > pisoAntes;
     if (state.height > state.bestHeight) state.bestHeight = state.height;
     const z = zoneAt(state.height);
-    if (this.lastZone && z !== this.lastZone) this.emit('zone', { zone: z });
+    // cruzar una nube ES entrar a la zona de arriba: un solo aviso (con el
+    // cielo nuevo). Un cambio de zona sin nube no debería pasar (toda frontera
+    // lleva nube), pero se deja el aviso suelto por las dudas.
+    if (cruzoNube) this.emit('nube', { piso: pisoAhora, zone: z });
+    else if (this.lastZone && z !== this.lastZone) this.emit('zone', { zone: z });
     this.lastZone = z;
+
+    // el auto-salto de la travesía de nube terminó de emerger: sin feedback,
+    // la racha se mantiene y queda listo para el próximo salto del jugador
+    if (this.autoCloud && !cruzoNube) {
+      this.autoCloud = false;
+      this.phase = 'idle';
+      return;
+    }
+
+    // Cobro del salto que trajo hasta acá (el auto-salto no cobra dos veces).
+    if (this.autoCloud) this.autoCloud = false;
+    else if (this.chainSafe) this.emit('chain', { gain: gained });
+    else if (this.perfect) this.emit('perfect', { gain: gained, mult: this.streakMult, streak: this.perfectStreak });
+    else this.emit('grab', { gain: gained });
+
+    // Al cruzar una nube el escalador la atraviesa a ciegas: el juego lo sube
+    // solo hasta el primer tronco despejado por encima del núcleo cegador
+    // (si la racha ya lo dejó más arriba, no hace falta). Salto seguro, sin
+    // romper la racha.
+    if (cruzoNube) {
+      const kClear = knotIndexAbove(pisoAhora + NUBE_CIEGA);
+      if (knotHeight(kClear) > state.height + 0.05) {
+        this.jumpStart = state.height;
+        this.targetKnot = kClear;
+        this.leapTo = knotHeight(kClear);
+        this.t = 0;
+        this.leapDur = LEAP_TIME * 1.3; // la travesía se toma su tiempo
+        this.result = 'grab';
+        this.chainSafe = true;
+        this.autoCloud = true;
+        return; // sigue en 'leaping', atravesando la nube
+      }
+      this.phase = 'idle';
+      return;
+    }
+
     if (this.chainSafe) {
-      this.emit('chain', { gain: gained });
       this.phase = 'idle';
       return;
     }
     if (this.perfect && state.unlocks.includes('saltolargo')) {
       // salto largo: encadena el siguiente nudo sin tirada de mala suerte
-      this.emit('perfect', { mult: this.streakMult, streak: this.perfectStreak });
       this.jumpStart = state.height;
       this.targetKnot = nextKnotIndex(state.height);
       this.leapTo = knotHeight(this.targetKnot);
@@ -307,11 +356,6 @@ export const climb = {
       this.result = 'grab';
       this.chainSafe = true;
       return; // sigue en 'leaping'
-    }
-    if (this.perfect) {
-      this.emit('perfect', { gain: gained, mult: this.streakMult, streak: this.perfectStreak });
-    } else {
-      this.emit('grab', { gain: gained });
     }
     this.phase = 'idle';
   },
@@ -329,6 +373,8 @@ export const climb = {
     this.phase = 'idle';
     this.power = 0;
     this.t = 0;
+    this.chainSafe = false;
+    this.autoCloud = false;
     this.breakStreak();
     this.lastZone = null;
     this.chargeAlpha = 0;

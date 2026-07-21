@@ -21,6 +21,7 @@ const C = {
 
 const VISIBLE_M = 9; // metros de rama visibles en pantalla
 const CHAR_Y = 0.7; // fracción de pantalla donde vive el personaje
+const CLOUD_VEIL = 0.85; // segundos que dura el fogonazo blanco al cruzar una nube
 
 // arrays de guiones constantes: evitan alocar en cada frame
 const DASH_STRIA = [26, 21];
@@ -35,18 +36,34 @@ function hexLerp(a, b, t) {
   return `rgb(${m[0]},${m[1]},${m[2]})`;
 }
 
-// Cielo por etapa (checkpoint-nube): arriba de cada nube cruzable la noche
-// cambia de tono — más azul y rala cuanto más cerca de la luna. Transición
-// suave en los 6 m que siguen a cada nube. Solo un fillStyle: costo cero.
-const NOCHE_ETAPAS = ['#131B12', '#121A19', '#0F1620', '#0B0F1E'];
-function nocheAt(h) {
-  let i = 0;
-  for (let k = 0; k < NUBES.length; k++) if (h >= NUBES[k]) i = k + 1;
-  if (i > 0) {
-    const t = (h - NUBES[i - 1]) / 6;
-    if (t < 1) return hexLerp(NOCHE_ETAPAS[i - 1], NOCHE_ETAPAS[i], Math.max(0, t));
+// Cielo de cada zona: cada nube-barrera abre un cielo nuevo (ZONES[i].cielo,
+// de la noche del monte al día y de vuelta a la noche estrellada de la luna).
+// La transición ocurre en los ~5 m previos a la frontera, así el cielo ya está
+// virando cuando cruzás la nube y el fogonazo blanco tapa el corte final.
+// `night` (0 día → 1 noche) gradúa luciérnagas, estrellas y viñeta. Solo un
+// fillStyle por frame: costo cero. Devuelve un objeto reusado (sin alocar).
+const SKY = { col: '#131B12', night: 1 };
+const SKY_FADE = 5;
+function skyAt(h) {
+  let cur = ZONES[0];
+  let next = null;
+  for (let i = 0; i < ZONES.length; i++) {
+    if (h >= ZONES[i].at) {
+      cur = ZONES[i];
+      next = ZONES[i + 1] || null;
+    }
   }
-  return NOCHE_ETAPAS[i];
+  if (next) {
+    const k = Math.min(1, (h - (next.at - SKY_FADE)) / SKY_FADE);
+    if (k > 0) {
+      SKY.col = hexLerp(cur.cielo, next.cielo, k);
+      SKY.night = cur.noche + (next.noche - cur.noche) * k;
+      return SKY;
+    }
+  }
+  SKY.col = cur.cielo;
+  SKY.night = cur.noche;
+  return SKY;
 }
 
 // Verde de la rama según la zona, con transición suave en los 6 m
@@ -79,6 +96,8 @@ export class Scene {
     this.particles = [];
     this.flashT = 0; // destello del perfecto: se dispara al soltar
     this.flashH = 0;
+    this.night = 1; // 0 día → 1 noche (lo fija skyAt cada frame)
+    this.cloudVeilT = 0; // temporizador del fogonazo blanco al cruzar una nube
     this.climberPos = { x: 0, y: 0 };
     this.birdPos = null;
     this.swarmPos = null;
@@ -125,28 +144,39 @@ export class Scene {
     return c;
   }
 
-  // nube-checkpoint: banco mullido pre-renderizado (blobs, jamás por frame)
+  // nube-barrera: banco mullido pre-renderizado (blobs, jamás por frame).
+  // Gama de blancos: base hueso translúcida + núcleo casi opaco (la zona de
+  // aterrizaje que ciega al cruzar) + halos que se deshacen hacia el cielo.
   makeCloudSprite() {
     const c = document.createElement('canvas');
     c.width = 512;
-    c.height = 160;
+    c.height = 200;
     const g = c.getContext('2d');
-    const blobs = [
-      [90, 100, 60], [190, 82, 75], [300, 90, 80], [410, 100, 62], [255, 118, 90],
+    const puffs = [
+      [90, 120, 58], [175, 100, 74], [262, 92, 88], [350, 102, 76], [432, 122, 58],
+      [150, 140, 50], [312, 142, 56], [230, 122, 92],
     ];
-    // cuerpo plano estilo xilografía + halo suave arriba
-    g.fillStyle = 'rgba(242,232,206,0.16)';
-    for (const [x, y, r] of blobs) {
+    // cuerpo ancho, blanco hueso translúcido (plano, estilo xilografía)
+    g.fillStyle = 'rgba(242,238,226,0.5)';
+    for (const [x, y, r] of puffs) {
       g.beginPath();
       g.arc(x, y, r, 0, Math.PI * 2);
       g.fill();
     }
-    for (const [x, y, r] of blobs) {
-      const rg = g.createRadialGradient(x, y - r * 0.3, 1, x, y - r * 0.3, r * 1.15);
-      rg.addColorStop(0, 'rgba(242,232,206,0.12)');
-      rg.addColorStop(1, 'rgba(242,232,206,0)');
+    // núcleo denso, blanco casi puro: el corazón que tapa la vista al cruzar
+    g.fillStyle = 'rgba(252,250,244,0.82)';
+    for (const [x, y, r] of puffs) {
+      g.beginPath();
+      g.arc(x, y - r * 0.12, r * 0.64, 0, Math.PI * 2);
+      g.fill();
+    }
+    // halos suaves arriba: el vapor deshilachándose hacia el cielo nuevo
+    for (const [x, y, r] of puffs) {
+      const rg = g.createRadialGradient(x, y - r * 0.3, 2, x, y - r * 0.3, r * 1.2);
+      rg.addColorStop(0, 'rgba(255,255,255,0.5)');
+      rg.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = rg;
-      g.fillRect(x - r * 1.2, y - r * 1.5, r * 2.4, r * 2.4);
+      g.fillRect(x - r * 1.3, y - r * 1.6, r * 2.6, r * 2.6);
     }
     return c;
   }
@@ -210,6 +240,7 @@ export class Scene {
   draw(dt, view) {
     const { ctx } = this;
     this.t += dt;
+    if (this.cloudVeilT > 0) this.cloudVeilT = Math.max(0, this.cloudVeilT - dt);
     const h = climb.visualHeight();
     this.cameraH += (h - this.cameraH) * Math.min(1, dt * 4.5);
     this.shake = Math.max(0, this.shake - dt * 2.4);
@@ -221,8 +252,10 @@ export class Scene {
     else if (this.cameraH - h > 2.5) this.cameraH = h + 2.5;
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    // el fondo distinto de cada etapa: arriba de cada nube la noche se abre
-    ctx.fillStyle = state.mode === 'zen' ? nocheAt(this.cameraH) : C.noche;
+    // el cielo de la zona actual (cambia al cruzar cada nube-barrera)
+    const sky = skyAt(this.cameraH);
+    this.night = sky.night;
+    ctx.fillStyle = sky.col;
     ctx.fillRect(0, 0, this.W, this.H);
 
     ctx.save();
@@ -230,6 +263,7 @@ export class Scene {
       ctx.translate((Math.random() - 0.5) * 7 * this.shake, (Math.random() - 0.5) * 5 * this.shake);
     }
 
+    this.drawStars();
     this.drawLeafLayer(0.35, this.leafDeep, 0);
     this.drawLeafLayer(0.65, this.leafSoft, 40);
     this.drawFireflies();
@@ -238,12 +272,13 @@ export class Scene {
     this.drawRecordLine();
     this.drawAnts(view.antRate);
     this.drawGround();
-    this.drawClouds();
     this.drawChargeOverlays();
     this.drawPerfectFlash(dt);
     this.drawClimber(h);
     this.drawBird();
     this.drawSwarm();
+    // las nubes van DESPUÉS del escalador: se le pasa por debajo al cruzarlas
+    this.drawClouds();
     this.drawParticles(dt);
     this.drawWind(view.unlocks);
     this.drawFog();
@@ -275,17 +310,40 @@ export class Scene {
   }
 
   drawFireflies() {
+    if (this.night < 0.05) return; // de día no hay luciérnagas
     const { ctx } = this;
     for (let i = 0; i < 9; i++) {
       const fx = ((hash(i * 7.7) + Math.sin(this.t * 0.06 + i * 1.9) * 0.04) % 1) * this.W;
       let fy = (hash(i * 3.3) + this.t * 0.008 * (1 + (i % 3)) + this.cameraH * 0.015) % 1;
       if (fy < 0) fy += 1;
-      const a = 0.22 + 0.22 * Math.sin(this.t * 1.4 + i * 2.6);
+      const a = (0.22 + 0.22 * Math.sin(this.t * 1.4 + i * 2.6)) * this.night;
       if (a <= 0.03) continue;
       ctx.globalAlpha = a;
       ctx.fillStyle = C.savia;
       ctx.beginPath();
       ctx.arc(fx, (1 - fy) * this.H, 1.9, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- estrellas: solo en las alturas nocturnas (hacia la luna) ----------
+  // La zona 0 conserva su noche icónica SIN estrellas (gate por altura); recién
+  // aparecen desde el crepúsculo hacia arriba, titilando sobre el cielo oscuro.
+  drawStars() {
+    if (this.cameraH < 160 || this.night < 0.4) return;
+    const a = Math.min(1, (this.night - 0.4) / 0.5);
+    if (a <= 0) return;
+    const { ctx } = this;
+    ctx.fillStyle = C.hueso;
+    for (let i = 0; i < 44; i++) {
+      const sx = hash(i * 1.7) * this.W;
+      let sy = (hash(i * 4.9) - this.cameraH * 0.006) % 1; // parallax lento al subir
+      if (sy < 0) sy += 1;
+      const tw = 0.4 + 0.6 * Math.sin(this.t * 1.2 + i * 2.3);
+      ctx.globalAlpha = a * (0.25 + 0.55 * tw);
+      ctx.beginPath();
+      ctx.arc(sx, sy * this.H, 0.7 + hash(i * 2.3) * 1.1, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -537,22 +595,27 @@ export class Scene {
     ctx.globalAlpha = 1;
   }
 
-  // ---------- nubes-checkpoint: el piso de algodón de cada etapa ----------
+  // ---------- nubes-barrera: el algodón que separa cada cielo ----------
+  // Corren en ambos modos. Se ven desde algunos metros antes y se hacen densas
+  // al acercarte (el núcleo blanco es la zona de aterrizaje). Van dibujadas
+  // DESPUÉS del escalador: se le pasa por debajo. Al cruzar, `cloudCross()`
+  // dispara un fogonazo blanco que ciega mientras el juego sube solo.
   drawClouds() {
-    if (state.mode !== 'zen') return;
     const { ctx } = this;
     const { top, bot } = this.branchSpan();
     for (const n of NUBES) {
-      if (n < bot - 2 || n > top + 2) continue;
+      if (n < bot - 6 || n > top + 10) continue;
       const y = this.yOf(n);
       const cruzada = state.height >= n;
+      // proximidad 0→1: la nube crece y se opaca a medida que te acercás
+      const cerca = Math.max(0, 1 - Math.abs(this.cameraH - n) / 7);
       const drift = menosMovimiento() ? 0 : Math.sin(this.t * 0.25 + n) * 8;
-      const sw = this.W * 1.25;
-      const sh = sw * (160 / 512);
-      // el banco cruza toda la pantalla, apoyado sobre la línea del umbral
-      ctx.globalAlpha = cruzada ? 0.9 : 0.55;
-      ctx.drawImage(this.cloudSprite, (this.W - sw) / 2 + drift, y - sh * 0.32, sw, sh);
-      // filo superior de tinta: cuando es piso, se LEE como piso
+      const sw = this.W * 1.35;
+      const sh = sw * (200 / 512);
+      // piso de visibilidad para verla venir + densidad extra de cerca
+      ctx.globalAlpha = Math.min(1, (cruzada ? 0.6 : 0.4) + 0.55 * cerca);
+      ctx.drawImage(this.cloudSprite, (this.W - sw) / 2 + drift, y - sh * 0.46, sw, sh);
+      // filo superior de tinta clara: cuando es piso, se LEE como piso firme
       if (cruzada) {
         ctx.globalAlpha = 0.5;
         ctx.strokeStyle = C.hueso;
@@ -568,6 +631,21 @@ export class Scene {
       }
     }
     ctx.globalAlpha = 1;
+
+    // fogonazo al cruzar: el algodón ciega un instante (visibilidad imposible)
+    if (this.cloudVeilT > 0) {
+      const p = this.cloudVeilT / CLOUD_VEIL; // 1 → 0
+      const peak = menosMovimiento() ? 0.32 : 0.62;
+      ctx.globalAlpha = peak * Math.min(1, p * 1.6); // sostiene y afloja
+      ctx.fillStyle = '#F8F6EE';
+      ctx.fillRect(0, 0, this.W, this.H);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // main lo llama al cruzar una nube: dispara el fogonazo blanco cegador
+  cloudCross() {
+    this.cloudVeilT = CLOUD_VEIL;
   }
 
   // ---------- rocío (evento): gotitas quietas que destellan ----------
@@ -1140,8 +1218,11 @@ export class Scene {
       this.vignette.addColorStop(0, 'rgba(0,0,0,0)');
       this.vignette.addColorStop(1, 'rgba(0,0,0,0.38)');
     }
+    // de día la viñeta afloja para no encajonar el cielo claro
+    ctx.globalAlpha = 0.4 + 0.6 * this.night;
     ctx.fillStyle = this.vignette;
     ctx.fillRect(0, 0, this.W, this.H);
+    ctx.globalAlpha = 1;
   }
 }
 

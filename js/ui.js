@@ -32,6 +32,9 @@ const SOLAPAS = [
 let els = {};
 let shopOpen = false;
 let roperoAbierto = false;
+// confirmación de dos toques del "rebirth" (volver a la zona 0)
+let rebirthArmado = false;
+let rebirthTimer = null;
 // lo que el jugador se está probando en el maniquí (puede no estar comprado)
 const probador = { sombrero: null, chiripa: null };
 let lastShopRefresh = 0;
@@ -73,6 +76,7 @@ export function init() {
     vidaStats: $('vida-stats'),
     compartirBtn: $('compartir-btn'),
     menosMovCheck: $('menosmov-check'),
+    rebirthBtn: $('rebirth-btn'),
     toasts: $('toasts'),
     shopStats: $('shop-stats'),
     zoneBanner: $('zone-banner'),
@@ -127,6 +131,21 @@ export function init() {
     state.opts.menosMov = els.menosMovCheck.checked;
     document.body.classList.toggle('menos-mov', menosMovimiento());
     save();
+  });
+  // "rebirth" suave: dos toques para confirmar y volver a la zona 0 (nada se
+  // pierde salvo la altura). Vive discreto al pie de Trofeos.
+  els.rebirthBtn.addEventListener('click', () => {
+    audio.ensure();
+    els.rebirthBtn.blur();
+    if (!rebirthArmado) {
+      armarRebirth();
+      return;
+    }
+    desarmarRebirth();
+    carrera.volverAZona0();
+    closeShop(); // volvés al juego y ves la zona 0 (el HUD se actualiza solo)
+    showBanner('De vuelta en la tierra', 'zona 0 · a trepar de nuevo');
+    audio.nubeChime();
   });
   document.body.classList.toggle('menos-mov', menosMovimiento());
   syncMuteIcon();
@@ -199,10 +218,30 @@ function openShop() {
 
 function closeShop() {
   shopOpen = false;
+  desarmarRebirth(); // al cerrar la tienda, el rebirth vuelve a pedir dos toques
   els.shop.classList.remove('open');
   setTimeout(() => {
     if (!shopOpen) els.shop.hidden = true;
   }, 300);
+}
+
+// el rebirth pide dos toques: el primero arma (y muestra la advertencia), el
+// segundo dentro de unos segundos confirma. Se desarma solo o al cerrar.
+function armarRebirth() {
+  rebirthArmado = true;
+  els.rebirthBtn.classList.add('armado');
+  els.rebirthBtn.textContent = '¿Seguro? Tocá de nuevo para bajar a la zona 0';
+  clearTimeout(rebirthTimer);
+  rebirthTimer = setTimeout(desarmarRebirth, 4000);
+}
+
+function desarmarRebirth() {
+  rebirthArmado = false;
+  clearTimeout(rebirthTimer);
+  if (els.rebirthBtn) {
+    els.rebirthBtn.classList.remove('armado');
+    els.rebirthBtn.textContent = 'Bajar a la tierra · volver a la zona 0';
+  }
 }
 
 // el ropero es un menú de pantalla completa: tapa el juego hasta volver.
