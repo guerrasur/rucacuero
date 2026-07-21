@@ -7,6 +7,10 @@
 //   suerte extra (la niebla no hace resbalar, solo tapa la vista).
 // - Enjambre de luciérnagas: nube que orbita junto a la rama; tocarla
 //   suelta un bono de hormigas. Se disipa sola si no la tocás.
+// - Rocío: la corteza amanece fresca — zona dulce MÁS ancha y savia ×1,5.
+//   Puro regalo: es el único clima que ensancha en vez de angostar.
+// - Granizo: espectáculo de piedritas. No resta nada; al terminar las
+//   hormigas juntan el granizo dulce y pagan un bono.
 import { state } from './state.js';
 
 export const branchEvents = {
@@ -15,6 +19,8 @@ export const branchEvents = {
   bird: null, // { h, side, t, dur, phase: 'perch' | 'fly', flyT }
   fog: null, // { t, dur }
   swarm: null, // { h, side, t, dur }
+  dew: null, // { t, dur } — rocío
+  hail: null, // { t, dur } — granizo
   queue: [],
 
   update(dt) {
@@ -57,7 +63,23 @@ export const branchEvents = {
         this.cooldown = 40 + Math.random() * 40;
       }
     }
-    if (!this.rain && !this.bird && !this.fog && !this.swarm) {
+    if (this.dew) {
+      this.dew.t += dt;
+      if (this.dew.t >= this.dew.dur) {
+        this.dew = null;
+        this.queue.push({ type: 'dew-end' });
+        this.cooldown = 40 + Math.random() * 40;
+      }
+    }
+    if (this.hail) {
+      this.hail.t += dt;
+      if (this.hail.t >= this.hail.dur) {
+        this.hail = null;
+        this.queue.push({ type: 'hail-end' }); // main paga el bono acá
+        this.cooldown = 40 + Math.random() * 40;
+      }
+    }
+    if (!this.rain && !this.bird && !this.fog && !this.swarm && !this.dew && !this.hail) {
       this.cooldown -= dt;
       if (this.cooldown <= 0 && state.height > 4) this.spawn();
     }
@@ -65,12 +87,14 @@ export const branchEvents = {
 
   spawn() {
     // si la misión activa pide espantar al pájaro, garantizamos que venga
-    const wantBird = state.quest && state.quest.id === 'bird';
+    // (también el paso del cuento que busca al chucao)
+    const wantBird = state.quest && (state.quest.id === 'bird' || state.quest.id === 'cuento3');
     let pick = 'bird';
     if (!wantBird) {
-      // tabla de pesos; la niebla recién aparece con algo de altura
-      const tabla = [['rain', 0.3], ['bird', 0.25], ['swarm', 0.2]];
-      if (state.height > 12) tabla.push(['fog', 0.25]);
+      // tabla de pesos; la niebla y el granizo recién aparecen con altura
+      const tabla = [['rain', 0.26], ['bird', 0.22], ['swarm', 0.18], ['dew', 0.16]];
+      if (state.height > 12) tabla.push(['fog', 0.2]);
+      if (state.height > 25) tabla.push(['hail', 0.14]);
       const total = tabla.reduce((s, [, w]) => s + w, 0);
       let r = Math.random() * total;
       for (const [id, w] of tabla) {
@@ -84,6 +108,12 @@ export const branchEvents = {
     if (pick === 'rain') {
       this.rain = { t: 0, dur: 18 + Math.random() * 6 };
       this.queue.push({ type: 'rain-start' });
+    } else if (pick === 'dew') {
+      this.dew = { t: 0, dur: 16 + Math.random() * 6 };
+      this.queue.push({ type: 'dew-start' });
+    } else if (pick === 'hail') {
+      this.hail = { t: 0, dur: 10 + Math.random() * 4 };
+      this.queue.push({ type: 'hail-start' });
     } else if (pick === 'fog') {
       this.fog = { t: 0, dur: 16 + Math.random() * 8 };
       this.queue.push({ type: 'fog-start' });
@@ -139,14 +169,25 @@ export const branchEvents = {
     const { t, dur } = this.fog;
     return Math.max(0, Math.min(1, t / 1.5, (dur - t) / 1.5));
   },
+  dewEnv() {
+    if (!this.dew) return 0;
+    const { t, dur } = this.dew;
+    return Math.max(0, Math.min(1, t / 1.5, (dur - t) / 1.5));
+  },
+  hailEnv() {
+    if (!this.hail) return 0;
+    const { t, dur } = this.hail;
+    return Math.max(0, Math.min(1, t / 1, (dur - t) / 1));
+  },
   sapMul() {
-    return this.rain ? 2 : this.fog ? 1.5 : 1;
+    return this.rain ? 2 : this.fog ? 1.5 : this.dew ? 1.5 : 1;
   },
   slipBonus() {
     return this.rain ? 0.04 : 0;
   },
   sweetMul() {
-    return (this.rain ? 0.92 : 1) * (this.fog ? 0.88 : 1);
+    // el rocío es el único clima que ENSANCHA la zona dulce (puro regalo)
+    return (this.rain ? 0.92 : 1) * (this.fog ? 0.88 : 1) * (this.dew ? 1.15 : 1);
   },
 
   takeEvents() {

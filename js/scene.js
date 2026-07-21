@@ -1,7 +1,7 @@
 // Render canvas de la escena: rama xilográfica, nudos, escalador, hormigas,
 // savia, luciérnagas y el elemento firma — el viento dibujado.
-import { state } from './state.js';
-import { climb, wind, knotHeight, knotHasSap, knotIndexAbove, hash, MAX_JUMP, PERFECT_W, ZONES } from './climb.js';
+import { state, menosMovimiento } from './state.js';
+import { climb, wind, knotHeight, knotHasSap, knotIndexAbove, hash, MAX_JUMP, PERFECT_W, ZONES, NUBES } from './climb.js';
 import { branchEvents } from './events.js';
 import { skinHex } from './cosmetics.js';
 import { run } from './carrera.js';
@@ -33,6 +33,20 @@ function hexLerp(a, b, t) {
   const pb = [1, 3, 5].map(i => parseInt(b.slice(i, i + 2), 16));
   const m = pa.map((v, i) => Math.round(v + (pb[i] - v) * t));
   return `rgb(${m[0]},${m[1]},${m[2]})`;
+}
+
+// Cielo por etapa (checkpoint-nube): arriba de cada nube cruzable la noche
+// cambia de tono — más azul y rala cuanto más cerca de la luna. Transición
+// suave en los 6 m que siguen a cada nube. Solo un fillStyle: costo cero.
+const NOCHE_ETAPAS = ['#131B12', '#121A19', '#0F1620', '#0B0F1E'];
+function nocheAt(h) {
+  let i = 0;
+  for (let k = 0; k < NUBES.length; k++) if (h >= NUBES[k]) i = k + 1;
+  if (i > 0) {
+    const t = (h - NUBES[i - 1]) / 6;
+    if (t < 1) return hexLerp(NOCHE_ETAPAS[i - 1], NOCHE_ETAPAS[i], Math.max(0, t));
+  }
+  return NOCHE_ETAPAS[i];
 }
 
 // Verde de la rama según la zona, con transición suave en los 6 m
@@ -71,6 +85,8 @@ export class Scene {
     this.strokes = this.makeWindStrokes();
     this.glowSprite = this.makeGlowSprite();
     this.fogSprite = this.makeFogSprite();
+    this.cloudSprite = this.makeCloudSprite();
+    this.hail = []; // piedritas activas del granizo
     this.leafDeep = [this.makeLeafSprite(C.nocheDeep, false), this.makeLeafSprite(C.nocheDeep, true)];
     this.leafSoft = [this.makeLeafSprite(C.nocheSoft, false), this.makeLeafSprite(C.nocheSoft, true)];
     this.resize();
@@ -105,6 +121,32 @@ export class Scene {
       rg.addColorStop(1, 'rgba(242,232,206,0)');
       g.fillStyle = rg;
       g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    return c;
+  }
+
+  // nube-checkpoint: banco mullido pre-renderizado (blobs, jamás por frame)
+  makeCloudSprite() {
+    const c = document.createElement('canvas');
+    c.width = 512;
+    c.height = 160;
+    const g = c.getContext('2d');
+    const blobs = [
+      [90, 100, 60], [190, 82, 75], [300, 90, 80], [410, 100, 62], [255, 118, 90],
+    ];
+    // cuerpo plano estilo xilografía + halo suave arriba
+    g.fillStyle = 'rgba(242,232,206,0.16)';
+    for (const [x, y, r] of blobs) {
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill();
+    }
+    for (const [x, y, r] of blobs) {
+      const rg = g.createRadialGradient(x, y - r * 0.3, 1, x, y - r * 0.3, r * 1.15);
+      rg.addColorStop(0, 'rgba(242,232,206,0.12)');
+      rg.addColorStop(1, 'rgba(242,232,206,0)');
+      g.fillStyle = rg;
+      g.fillRect(x - r * 1.2, y - r * 1.5, r * 2.4, r * 2.4);
     }
     return c;
   }
@@ -179,11 +221,12 @@ export class Scene {
     else if (this.cameraH - h > 2.5) this.cameraH = h + 2.5;
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.fillStyle = C.noche;
+    // el fondo distinto de cada etapa: arriba de cada nube la noche se abre
+    ctx.fillStyle = state.mode === 'zen' ? nocheAt(this.cameraH) : C.noche;
     ctx.fillRect(0, 0, this.W, this.H);
 
     ctx.save();
-    if (this.shake > 0.01) {
+    if (this.shake > 0.01 && !menosMovimiento()) {
       ctx.translate((Math.random() - 0.5) * 7 * this.shake, (Math.random() - 0.5) * 5 * this.shake);
     }
 
@@ -195,6 +238,7 @@ export class Scene {
     this.drawRecordLine();
     this.drawAnts(view.antRate);
     this.drawGround();
+    this.drawClouds();
     this.drawChargeOverlays();
     this.drawPerfectFlash(dt);
     this.drawClimber(h);
@@ -204,6 +248,8 @@ export class Scene {
     this.drawWind(view.unlocks);
     this.drawFog();
     this.drawRain();
+    this.drawDew();
+    this.drawHail(dt);
     ctx.restore();
 
     this.drawVignette();
@@ -491,6 +537,110 @@ export class Scene {
     ctx.globalAlpha = 1;
   }
 
+  // ---------- nubes-checkpoint: el piso de algodón de cada etapa ----------
+  drawClouds() {
+    if (state.mode !== 'zen') return;
+    const { ctx } = this;
+    const { top, bot } = this.branchSpan();
+    for (const n of NUBES) {
+      if (n < bot - 2 || n > top + 2) continue;
+      const y = this.yOf(n);
+      const cruzada = state.height >= n;
+      const drift = menosMovimiento() ? 0 : Math.sin(this.t * 0.25 + n) * 8;
+      const sw = this.W * 1.25;
+      const sh = sw * (160 / 512);
+      // el banco cruza toda la pantalla, apoyado sobre la línea del umbral
+      ctx.globalAlpha = cruzada ? 0.9 : 0.55;
+      ctx.drawImage(this.cloudSprite, (this.W - sw) / 2 + drift, y - sh * 0.32, sw, sh);
+      // filo superior de tinta: cuando es piso, se LEE como piso
+      if (cruzada) {
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = C.hueso;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (let x = -10; x <= this.W + 10; x += 46) {
+          const yy = y + Math.sin(x * 0.045 + n) * 4;
+          if (x === -10) ctx.moveTo(x, yy);
+          else ctx.quadraticCurveTo(x - 23, yy - 7, x, yy);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- rocío (evento): gotitas quietas que destellan ----------
+  drawDew() {
+    const env = branchEvents.dewEnv();
+    if (env <= 0) return;
+    const { ctx } = this;
+    // gotitas colgadas de la corteza, ancladas a la rama (suben con la cámara)
+    const { top, bot } = this.branchSpan();
+    ctx.fillStyle = C.hueso;
+    for (let i = 0; i < 26; i++) {
+      const hh = bot + ((hash(i * 6.1) * 40 + i * 1.7) % (top - bot + 4)) - 2;
+      const bx = this.branchX(hh);
+      const x = bx + (hash(i * 2.9) - 0.5) * this.bw * 1.1;
+      const y = this.yOf(hh);
+      const tw = 0.25 + 0.45 * Math.sin(this.t * 1.6 + i * 2.1);
+      if (tw <= 0.05) continue;
+      ctx.globalAlpha = tw * env;
+      ctx.beginPath();
+      ctx.arc(x, y, 1.6 + hash(i * 4.7) * 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // velo fresco apenas azulado
+    ctx.globalAlpha = 0.05 * env;
+    ctx.fillStyle = C.hueso;
+    ctx.fillRect(0, 0, this.W, this.H);
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- granizo (evento): piedritas que rebotan en la rama ----------
+  drawHail(dt) {
+    const env = branchEvents.hailEnv();
+    const { ctx } = this;
+    if (env > 0 && this.hail.length < 26 && Math.random() < 0.5) {
+      this.hail.push({
+        x: Math.random() * this.W,
+        y: -10,
+        vx: (Math.random() - 0.5) * 40,
+        vy: 380 + Math.random() * 260,
+        r: 1.8 + Math.random() * 1.8,
+        bounced: false,
+      });
+    }
+    if (!this.hail.length) return;
+    const speed = menosMovimiento() ? 0.55 : 1;
+    ctx.strokeStyle = C.tinta;
+    ctx.lineWidth = 1.2;
+    ctx.fillStyle = C.hueso;
+    for (let i = this.hail.length - 1; i >= 0; i--) {
+      const p = this.hail[i];
+      p.x += p.vx * dt * speed;
+      p.y += p.vy * dt * speed;
+      // rebote seco al cruzar la franja de la rama
+      const bx = this.branchX(this.cameraH);
+      if (!p.bounced && Math.abs(p.x - bx) < this.bw / 2 && p.y > this.H * 0.45 && p.y < this.H * 0.55) {
+        p.bounced = true;
+        p.vy = -p.vy * 0.35;
+        p.vx *= 1.6;
+      }
+      if (p.bounced) p.vy += 700 * dt;
+      if (p.y > this.H + 20) {
+        this.hail.splice(i, 1);
+        continue;
+      }
+      ctx.globalAlpha = 0.85 * Math.max(env, 0.35);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // ---------- partículas ----------
   burst(kind, px, py) {
     const x = px ?? this.climberPos.x;
@@ -500,8 +650,10 @@ export class Scene {
       spark: { n: 9, colors: [C.savia, C.hueso], up: -110, spread: 160, size: 2.6 },
       dust: { n: 8, colors: [C.hueso], up: -30, spread: 100, size: 2.8 },
     };
-    const d = defs[kind];
+    let d = defs[kind];
     if (!d) return;
+    // con reducción de movimiento las explosiones se achican a la mitad
+    if (menosMovimiento()) d = { ...d, n: Math.ceil(d.n / 2), up: d.up * 0.6, spread: d.spread * 0.6 };
     for (let i = 0; i < d.n; i++) {
       this.particles.push({
         x: x + (Math.random() - 0.5) * 24,

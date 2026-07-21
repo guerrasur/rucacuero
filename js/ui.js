@@ -1,5 +1,5 @@
 // HUD, tienda (hormiguero), ropero, toasts de savia y feedback flotante.
-import { state, save } from './state.js';
+import { state, save, menosMovimiento } from './state.js';
 import {
   UPGRADES,
   SAP_UNLOCKS,
@@ -16,6 +16,7 @@ import * as quests from './quests.js';
 import * as logros from './logros.js';
 import * as cosmetics from './cosmetics.js';
 import * as carrera from './carrera.js';
+import { compartirRecord } from './compartir.js';
 import { drawProbador, drawCosmeticIcon } from './scene.js';
 import { ICONOS, ANT_SVG, SAP_SVG, TROFEO_SVG } from './iconos.js';
 
@@ -69,6 +70,9 @@ export function init() {
     unlockList: $('unlock-list'),
     logrosList: $('logros-list'),
     logrosCount: $('logros-count'),
+    vidaStats: $('vida-stats'),
+    compartirBtn: $('compartir-btn'),
+    menosMovCheck: $('menosmov-check'),
     toasts: $('toasts'),
     shopStats: $('shop-stats'),
     zoneBanner: $('zone-banner'),
@@ -111,6 +115,20 @@ export function init() {
     else showBanner('Modo Carrera', `${carrera.timeTotal().toLocaleString('es-AR', { maximumFractionDigits: 1 })} s para subir lo más alto posible`);
     els.modoBtn.blur();
   });
+  // compartir el récord como estampa xilográfica (Web Share o descarga)
+  els.compartirBtn.addEventListener('click', () => {
+    audio.ensure();
+    compartirRecord();
+    els.compartirBtn.blur();
+  });
+  // reducción de movimiento: manda la casilla; si nunca se tocó, sigue al sistema
+  els.menosMovCheck.checked = menosMovimiento();
+  els.menosMovCheck.addEventListener('change', () => {
+    state.opts.menosMov = els.menosMovCheck.checked;
+    document.body.classList.toggle('menos-mov', menosMovimiento());
+    save();
+  });
+  document.body.classList.toggle('menos-mov', menosMovimiento());
   syncMuteIcon();
   buildTabs();
   buildShop();
@@ -472,6 +490,25 @@ function refreshShop(force) {
     const done = state.unlocks.includes(row.dataset.id);
     row.classList.toggle('locked', !done);
     row.querySelector('.check').textContent = done ? '✓' : '';
+  }
+
+  // estadísticas de toda la vida: números crudos arriba de los trofeos
+  const vida = [
+    ['metros trepados', fmtInt(state.life.metros)],
+    ['saltos perfectos', fmtInt(state.life.perfectos)],
+    ['misiones cumplidas', fmtInt(state.questsDone)],
+    ['chucaos espantados', fmtInt(state.life.chucaos)],
+    ['lluvias y rocíos aguantados', fmtInt(state.life.lluvias)],
+    ['enjambres tocados', fmtInt(state.life.enjambres)],
+    ['nubes atravesadas', fmtInt(state.life.nubes)],
+    ['hormigas gastadas', fmtInt(state.life.gastadas)],
+  ];
+  const vidaKey = vida.map(v => v[1]).join('|');
+  if (shopCache.vida !== vidaKey) {
+    shopCache.vida = vidaKey;
+    els.vidaStats.innerHTML = vida
+      .map(([label, val]) => `<div class="vida-stat"><b>${val}</b><span>${label}</span></div>`)
+      .join('');
   }
 
   for (const row of els.logrosList.children) {

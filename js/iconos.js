@@ -100,6 +100,27 @@ export const ICONOS = {
   misiones25: svg(
     '<path d="M12 3.5 20.5 12 12 20.5 3.5 12z"/><path d="m9 12 2.2 2.2L15 10"/>'
   ),
+  record360: svg(
+    '<path d="M14 3a6.5 6.5 0 1 0 7 8.5A6.5 6.5 0 0 1 14 3z" fill="currentColor"/><circle cx="5" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="7.5" cy="17" r="1" fill="currentColor" stroke="none"/>'
+  ),
+  misiones100: svg(
+    '<path d="M12 3.5 20.5 12 12 20.5 3.5 12z" fill="currentColor"/><path d="m9 12 2.2 2.2L15 10" stroke="#131B12"/>'
+  ),
+  nube1: svg(
+    '<path d="M6.5 15.5a3.5 3.5 0 0 1 .6-6.9A4.3 4.3 0 0 1 15.4 8a3.6 3.6 0 0 1 2 7.3z" fill="currentColor"/><path d="M4.5 19h15"/>'
+  ),
+  nubes5: svg(
+    '<path d="M5.5 12a3 3 0 0 1 .6-5.9A3.8 3.8 0 0 1 13.5 5.5 3.1 3.1 0 0 1 15 11.6z" fill="currentColor"/><path d="M9.5 19.5a3 3 0 0 1 .6-5.9 3.8 3.8 0 0 1 7.4-.6 3.1 3.1 0 0 1 1.5 6.1z"/>'
+  ),
+  metros20000: svg(
+    '<path d="M3.5 20 8 11l3 4.5L14 9l6.5 11z" fill="currentColor"/><path d="M14 9V4M14 4h4l-1.5 1.7L18 7.5h-4"/><circle cx="6" cy="5" r="1.2" fill="currentColor" stroke="none"/>'
+  ),
+  perfectos500: svg(
+    '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="#131B12" stroke="none"/><path d="M12 1.5v2M12 20.5v2M1.5 12h2M20.5 12h2"/>'
+  ),
+  cuento5: svg(
+    '<path d="M4.5 5.5c2.5-1.2 5-1.2 7.5 0v13c-2.5-1.2-5-1.2-7.5 0zM19.5 5.5c-2.5-1.2-5-1.2-7.5 0v13c2.5-1.2 5-1.2 7.5 0z" fill="currentColor"/><path d="M12 5.5v13"/>'
+  ),
 };
 
 // la mejora y el avance "mielada" comparten hoja: mismo dibujo, un solo lugar

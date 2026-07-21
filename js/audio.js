@@ -135,9 +135,14 @@ export function grab() {
   blip(95, 'sine', 0.5, 0.16, 55);
 }
 
-export function perfect() {
-  blip(660, 'triangle', 0.28, 0.22);
-  setTimeout(() => blip(880, 'triangle', 0.28, 0.3), 90);
+// Racha ascendente: cada perfecto encadenado sube un escalón de una
+// pentatónica; la racha se ESCUCHA crecer. Arriba del octavo, techo brillante.
+const RACHA_NOTAS = [660, 740, 831, 988, 1109, 1319, 1480, 1661, 1976];
+export function perfect(streak = 1) {
+  const idx = Math.min(RACHA_NOTAS.length - 1, Math.max(0, streak - 1));
+  const f = RACHA_NOTAS[idx];
+  blip(f, 'triangle', 0.28, 0.22);
+  setTimeout(() => blip(f * 4 / 3, 'triangle', 0.28, 0.3), 90);
 }
 
 export function resin() {
@@ -193,6 +198,22 @@ export function shimmer() {
 export function chirp() {
   blip(1300, 'sine', 0.14, 0.08, 1750);
   setTimeout(() => blip(1550, 'sine', 0.11, 0.09, 1100), 110);
+}
+
+// Rocío: gotitas cristalinas, dos toques suaves.
+export function dewChime() {
+  blip(1245, 'sine', 0.12, 0.3);
+  setTimeout(() => blip(1661, 'sine', 0.1, 0.35), 160);
+}
+
+// Granizo: piedrita seca contra la corteza (main lo dispara al azar).
+export function hailTick() {
+  noise(0.14, 0.05, 2400 + Math.random() * 1200, 2);
+}
+
+// La nube-checkpoint: acorde suave que sube, como atravesar algodón.
+export function nubeChime() {
+  [392, 494, 587, 784].forEach((f, i) => setTimeout(() => blip(f, 'sine', 0.18, 0.5), i * 130));
 }
 
 export function questDone() {

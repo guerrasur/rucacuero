@@ -22,11 +22,21 @@ export const state = {
   quest: null, // misión activa: { id, target, progress }
   questsDone: 0,
   // contadores de toda la vida (solo suben): alimentan los logros permanentes
-  life: { metros: 0, perfectos: 0, chucaos: 0, lluvias: 0, gastadas: 0, enjambres: 0 },
+  life: { metros: 0, perfectos: 0, chucaos: 0, lluvias: 0, gastadas: 0, enjambres: 0, nubes: 0 },
   logros: [], // ids de logros ya cumplidos
+  cuento: 0, // pasos completados de "El cuento del monte" (misiones con historia)
+  // opciones de accesibilidad: null = seguir la preferencia del sistema
+  opts: { menosMov: null },
   // ropero: cosméticos comprados y qué lleva puesto (null = default)
   cosmetics: { owned: [], sombrero: null, chiripa: null, piel: 'ocre' },
 };
+
+// Reducción de movimiento: vive acá (y no en ui) porque scene también la
+// necesita y ui ya importa a scene — ponerla en ui armaría un ciclo.
+const mediaCalma = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+export function menosMovimiento() {
+  return state.opts.menosMov ?? (mediaCalma ? mediaCalma.matches : false);
+}
 
 function num(x) {
   const n = Number(x);
@@ -92,6 +102,9 @@ export function load() {
   state.cosmetics.sombrero = typeof cos.sombrero === 'string' ? cos.sombrero : null;
   state.cosmetics.chiripa = typeof cos.chiripa === 'string' ? cos.chiripa : null;
   state.cosmetics.piel = typeof cos.piel === 'string' ? cos.piel : 'ocre';
+  state.cuento = Math.floor(num(data.cuento));
+  const op = data.opts || {};
+  state.opts.menosMov = typeof op.menosMov === 'boolean' ? op.menosMov : null;
 }
 
 export function save() {

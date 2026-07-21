@@ -1,6 +1,6 @@
 // Service worker de Ruca Cuero: cache-first con precache cerrado.
 // REGLA: cualquier cambio en un asset requiere bumpear CACHE (rucacuero-vN).
-const CACHE = 'rucacuero-v15';
+const CACHE = 'rucacuero-v16';
 const ASSETS = [
   './',
   'index.html',
@@ -19,6 +19,7 @@ const ASSETS = [
   'js/ui.js',
   'js/iconos.js',
   'js/audio.js',
+  'js/compartir.js',
   'fonts/chango-latin.woff2',
   'fonts/chango-latin-ext.woff2',
   'fonts/bricolage-latin.woff2',

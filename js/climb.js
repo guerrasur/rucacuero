@@ -50,6 +50,19 @@ export function zoneAt(h) {
   return z;
 }
 
+// ---------- checkpoint-nube ----------
+// Nubes gigantes en los umbrales altos de zona. Al atravesarlas quedan como
+// PISO: ninguna caída (corto/pasado/mala suerte) te baja de la última nube
+// cruzada. Solo en zen — la carrera siempre arranca de la tierra y su caída
+// final tiene que llegar al suelo para cerrar la run.
+export const NUBES = [70, 180, 360];
+export function pisoNube(h = state.height) {
+  if (state.mode !== 'zen') return 0;
+  let p = 0;
+  for (const n of NUBES) if (h >= n) p = n;
+  return p;
+}
+
 // Los nudos son deterministas: la rama es la misma en cada sesión.
 const knots = [0];
 export function knotHeight(i) {
@@ -239,15 +252,17 @@ export const climb = {
   },
 
   arrive() {
+    // el piso de la caída es la última nube cruzada (0 si no hay ninguna)
+    const piso = pisoNube(this.jumpStart);
     if (this.result === 'short') {
       this.breakStreak();
-      this.startSlip(this.leapTo, Math.max(0, this.jumpStart - LOSS_SHORT));
+      this.startSlip(this.leapTo, Math.max(piso, this.jumpStart - LOSS_SHORT));
       this.emit('short');
       return;
     }
     if (this.result === 'over') {
       this.breakStreak();
-      this.startSlip(this.leapTo, Math.max(0, this.jumpStart - LOSS_OVER));
+      this.startSlip(this.leapTo, Math.max(piso, this.jumpStart - LOSS_OVER));
       this.emit('over');
       return;
     }
@@ -261,13 +276,17 @@ export const climb = {
         this.emit('resin');
       } else {
         this.breakStreak();
-        this.startSlip(this.leapTo, Math.max(0, this.jumpStart - LOSS_LUCK));
+        this.startSlip(this.leapTo, Math.max(piso, this.jumpStart - LOSS_LUCK));
         this.emit('badluck');
         return;
       }
     }
     const gained = this.leapTo - state.height;
+    // ¿este agarre cruzó una nube por primera vez en la subida?
+    const pisoAntes = pisoNube(state.height);
     state.height = this.leapTo;
+    const pisoAhora = pisoNube(state.height);
+    if (pisoAhora > pisoAntes) this.emit('nube', { piso: pisoAhora });
     if (state.height > state.bestHeight) state.bestHeight = state.height;
     const z = zoneAt(state.height);
     if (this.lastZone && z !== this.lastZone) this.emit('zone', { zone: z });
