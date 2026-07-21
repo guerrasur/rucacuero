@@ -128,16 +128,20 @@ export function nextLockedUnlock() {
 // sapMul: multiplicador de eventos (lluvia); la savia solo sube, nunca baja.
 // genAnts: las hormigas negras solo se generan en modo zen; la savia es
 // pasiva y constante en los dos modos (regla inviolable: nunca baja).
+const SIN_UNLOCKS = []; // array compartido: el caso normal (nada nuevo) no aloca
 export function tick(dt, sapMul = 1, genAnts = true) {
   if (genAnts) state.ants += antRate() * dt;
   state.sap += SAP_RATE * dt * sapMul;
-  const fresh = [];
+  let fresh = null;
   for (const u of SAP_UNLOCKS) {
     if (state.sap >= u.at && !state.unlocks.includes(u.id)) {
       state.unlocks.push(u.id);
-      fresh.push(u);
+      (fresh || (fresh = [])).push(u);
     }
   }
-  if (fresh.length) save();
-  return fresh;
+  if (fresh) {
+    save();
+    return fresh;
+  }
+  return SIN_UNLOCKS;
 }
