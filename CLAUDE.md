@@ -10,12 +10,14 @@ Formato de números: `toLocaleString('es-AR')` (coma decimal).
 ## Dos modos (botón `#modo-btn`)
 
 - **Carrera** (principal, default): contrarreloj desde la tierra (5 s pelados;
-  la mejora `reloj` suma 5,5 s/nivel hasta 60 s). La puntería es SIEMPRE a
+  la mejora `reloj` sigue la tabla `RELOJ_TIEMPOS` — 7 s al primer nivel,
+  escalones crecientes hasta 90 s MÁX en nv 12). La puntería es SIEMPRE a
   escala base contra el próximo nudo; los perfectos encadenados multiplican los
   **metros ganados al agarrar**, exponencial y sin tope
   (`gainMul = resorte × 1,25^racha`): el salto te eleva de largo pasando ramas
   enteras, y el aterrizaje se ancla SIEMPRE al nudo más cercano (caer entre
-  ramas dejaba nudos a centímetros y regalaba rachas perdidas). La escala del render es fija (NADA de zoom — estiraba el árbol y
+  ramas dejaba nudos a centímetros y regalaba rachas perdidas). La mecánica de
+  racha corre igual en zen (sin resorte/eco, que son coloradas). La escala del render es fija (NADA de zoom — estiraba el árbol y
   movía el objetivo); en vuelos/caídas rápidas la cámara se engancha al
   escalador (clamp ±2,5 m sobre el lerp). Al agotarse el tiempo cae a la tierra (queda tumbado ~1,1 s y se
   levanta, `run.ground`) y la altura pico paga **hormigas coloradas** (HUD en
@@ -72,7 +74,8 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   `antRate()`, `SAP_RATE=0.2`, `slipChance(windy)` (8% base ×0.82^nudos,
   piso 1%), `tick(dt, sapMul, genAnts)` (negras solo en zen; savia siempre),
   `buy()`.
-- `carrera.js` — modo carrera: `R_UPGRADES` (4, en coloradas), `timeTotal()`,
+- `carrera.js` — modo carrera: `R_UPGRADES` (4, en coloradas), `timeTotal()`
+  (tabla `RELOJ_TIEMPOS`, 5→7→…→90 s),
   objeto `run` (active/left/peak/falling; `onPress()` arranca el reloj,
   `update(dt)` lo corre y dispara la caída con `climb.startSlip(h,0,dur)`,
   `finish()` SIEMPRE paga el botín) y `setMode()` (swap de alturas zen↔carrera
@@ -93,11 +96,14 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   `CHARGE_SPEED=0.55` pot/s, zona dulce ±0.55 m (±0.30 con ráfaga, ±0.38 con
   unlock `brisa`), `PERFECT_W=0.14` (soltada dentro de ±0.14 = agarre
   perfecto, **inmune a la tirada de mala suerte** — la micro-zona premia la
-  precisión, se dibuja siempre con pulso + bordes hueso + glow). Racha de
-  perfectos: en zen `STREAK_MULTS=[1,1.1,1.2,1.3,1.5,1.7,2]` (impulso extra en
-  `release()`, solo suma); en carrera `gainMul()` exponencial sin tope; en
-  ambos, cualquier soltada no perfecta la corta (`breakStreak()`); badge
-  `#mult` en el HUD con pop por perfecto. `MIN_TARGET_GAP = MAX_JUMP*0.5` (3 m):
+  precisión, se dibuja siempre con pulso + bordes hueso + glow, y también se
+  marca en savia sobre el medidor lateral). Racha de perfectos UNIFICADA:
+  `gainMul()` exponencial sin tope en ambos modos (`1,25^racha`; carrera suma
+  resorte/eco) y aterrizaje SIEMPRE anclado al nudo más cercano; cualquier
+  soltada no perfecta la corta (`breakStreak()`); badge `#mult` en el HUD con
+  pop por perfecto. Al soltar un perfecto se emite `perfect-release` →
+  `scene.perfectFlash()` (destello inmediato de la banda dorada, no espera el
+  aterrizaje). `MIN_TARGET_GAP = MAX_JUMP*0.5` (3 m):
   si el próximo nudo exige menos del 50% de la carga, `press()` apunta directo
   al siguiente cuando entra en el salto máximo (`MAX_JUMP + 0.1`) — nunca un
   objetivo sin tiempo de reacción ni rachas perdidas por un tronco mal
@@ -119,7 +125,7 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
 - `logros.js` — 12 logros permanentes (`LOGROS`): métricas acumulativas en
   `state.life` (via `bump(metric, amount)`, único entry point) + derivadas
   récord/misiones (via `checkDerived()`, llamada por main solo cuando hubo
-  eventos). Recompensa en hormigas, solo suma. UI: sección en la sheet.
+  eventos). Recompensa en hormigas, solo suma. UI: solapa Trofeos de la tienda.
 - `scene.js` — render canvas (contexto `{alpha:false}`). Cámara sigue
   `climb.visualHeight()`; `CHAR_Y=0.7`, `VISIBLE_M=9`. Dibuja: follaje
   parallax (sprites pre-renderizados), luciérnagas, rama (dos verdes +
@@ -129,10 +135,17 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   poses), chucao, enjambre (glow + puntitos savia), partículas, viento
   (Path2D), niebla (bandas de `fogSprite` + velo), lluvia, viñeta.
   `scene.birdPos` y `scene.swarmPos` los usa main para el hit-test del tap.
+- `iconos.js` — SVG inline de la tienda: `ICONOS[id]` (uno por mejora, avance
+  de savia y logro) + `ANT_SVG`/`SAP_SVG`/`TROFEO_SVG`. ViewBox 24, trazos
+  redondeados `currentColor`, mismo lenguaje que la hormiga/gota del HUD. Sin
+  imports (hoja).
 - `ui.js` — HUD (escrituras DOM **solo cuando cambia el texto** — mantener),
-  tienda bottom-sheet (mejoras + savia + logros) y **ropero de pantalla
-  completa** (`openRopero()`/`closeRopero()`, export `roperoOpen()` que main
-  usa para bloquear el salto con Espacio): maniquí en vivo (`drawProbador`
+  **tienda de pantalla completa** (como el ropero: `openShop()`/`closeShop()`)
+  con tres solapas por icono — Hormigas (mejoras del modo activo), Savia
+  (umbrales) y Trofeos (logros) — chips de moneda en el header, y **ropero de
+  pantalla completa** (`openRopero()`/`closeRopero()`; export `menuAbierto()`
+  que main usa para bloquear el salto con Espacio en ambos menús): maniquí en
+  vivo (`drawProbador`
   por frame, objeto `probador` = lo que se prueba sin comprar), swatches de
   piel (aplican al toque), cartas con icono canvas (`drawCosmeticIcon`, una
   vez) y botón comprar/equipar/sacarse, toasts, `showBanner()`,
@@ -189,12 +202,19 @@ ven la versión fresca. Los PNG de `icons/` se generaron una vez desde
 
 ## Git
 
-Branch de trabajo actual: `claude/zen-mode-time-limit-5uwtg3` (los
+Branch de trabajo actual: `claude/zen-mode-fixes-ui-lstlj9` (los
 branches de iteraciones anteriores ya se mergearon a `main`). Commits en
 español, descriptivos. No abrir PR salvo pedido explícito.
 
 ## Ideas pendientes (aprobadas a grandes rasgos, no comprometidas)
 
-Más eventos de rama (siempre sin quitarle nada al jugador); más logros o un
-prestige suave para el endgame profundo; modos de accesibilidad (reducción de
-movimiento); compartir el récord como imagen.
+- **Checkpoint-nube** (pedido del usuario): a partir de cierta altura el
+  jugador atraviesa una nube gigante que queda como **piso** de la siguiente
+  zona — fondo distinto arriba, modo de avance por etapas.
+- Más eventos de rama (siempre sin quitarle nada al jugador); más logros o un
+  prestige suave para el endgame profundo ("bajar a plantar otra rama").
+- Modos de accesibilidad (reducción de movimiento); compartir el récord como
+  imagen xilográfica.
+- Clima nuevo (granizo/rocío que solo suman o avisan, jamás restan); audio de
+  racha ascendente (un tono por perfecto encadenado); estadísticas de vida en
+  la solapa Trofeos; misiones encadenadas con una historia corta del monte.

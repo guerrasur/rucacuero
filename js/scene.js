@@ -63,6 +63,8 @@ export class Scene {
     this.shake = 0;
     this.dpr = 1;
     this.particles = [];
+    this.flashT = 0; // destello del perfecto: se dispara al soltar
+    this.flashH = 0;
     this.climberPos = { x: 0, y: 0 };
     this.birdPos = null;
     this.swarmPos = null;
@@ -194,6 +196,7 @@ export class Scene {
     this.drawAnts(view.antRate);
     this.drawGround();
     this.drawChargeOverlays();
+    this.drawPerfectFlash(dt);
     this.drawClimber(h);
     this.drawBird();
     this.drawSwarm();
@@ -651,6 +654,57 @@ export class Scene {
     ctx.beginPath();
     ctx.roundRect(mtX - 4, mtTop + mtH - fillH, 8, fillH, 4);
     ctx.fill();
+
+    // distintivo del perfecto en el medidor: la micro-zona en savia con
+    // bordes hueso, encima del relleno — se ve dónde está sin mirar la rama
+    const qLo = Math.max(0, Math.min(1, (gap - PERFECT_W) / MAX_JUMP));
+    const qHi = Math.max(0, Math.min(1, (gap + PERFECT_W) / MAX_JUMP));
+    if (qHi > qLo) {
+      const yHi = mtTop + mtH * (1 - qHi);
+      const yLo = mtTop + mtH * (1 - qLo);
+      ctx.fillStyle = C.savia;
+      ctx.fillRect(mtX - 5, yHi, 10, yLo - yHi);
+      ctx.strokeStyle = C.hueso;
+      ctx.lineWidth = 1.4;
+      for (const yy of [yHi, yLo]) {
+        ctx.beginPath();
+        ctx.moveTo(mtX - 6, yy);
+        ctx.lineTo(mtX + 6, yy);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- destello del perfecto (al soltar, no al aterrizar) ----------
+  perfectFlash() {
+    this.flashH = knotHeight(climb.targetKnot);
+    this.flashT = 0.45;
+    this.burst('spark', this.branchX(this.flashH), this.yOf(this.flashH));
+  }
+
+  drawPerfectFlash(dt) {
+    if (this.flashT <= 0) return;
+    this.flashT = Math.max(0, this.flashT - dt);
+    const p = this.flashT / 0.45; // 1 → 0
+    const { ctx } = this;
+    const bx = this.branchX(this.flashH);
+    const y = this.yOf(this.flashH);
+    // la banda dorada se "presiona": llena y se apaga
+    const py1 = this.yOf(this.flashH + PERFECT_W);
+    const py2 = this.yOf(this.flashH - PERFECT_W);
+    ctx.globalAlpha = 0.6 * p;
+    ctx.fillStyle = C.savia;
+    ctx.fillRect(bx - this.bw * 0.62, py1, this.bw * 1.24, py2 - py1);
+    // glow + anillo hueso que se expande desde el nudo
+    const gs = 60 + (1 - p) * 60;
+    ctx.globalAlpha = 0.9 * p;
+    ctx.drawImage(this.glowSprite, bx - gs / 2, y - gs / 2, gs, gs);
+    ctx.strokeStyle = C.hueso;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(bx, y, 14 + (1 - p) * 34, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.globalAlpha = 1;
   }
 
