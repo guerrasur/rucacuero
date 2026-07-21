@@ -1,10 +1,11 @@
-// Modo Carrera: contrarreloj desde el tallo. El jugador tiene un tiempo
-// límite para subir lo más alto posible; al agotarse cae a la raíz y la
-// altura alcanzada paga hormigas coloradas (moneda propia del modo, aparte
-// de las negras del zen). Los perfectos encadenados agrandan el salto
+// Modo Carrera: contrarreloj desde el tallo (o desde el checkpoint-nube más
+// alto ya cruzado). El jugador tiene un tiempo límite para subir lo más alto
+// posible; al agotarse cae al piso — tierra o última nube — y la altura
+// alcanzada paga hormigas coloradas (moneda propia del modo, aparte de las
+// negras del zen). Los perfectos encadenados agrandan el salto
 // exponencialmente y sin tope — eso vive en climb.js (jumpMul).
 import { state, save } from './state.js';
-import { climb } from './climb.js';
+import { climb, pisoNube } from './climb.js';
 
 export const RUN_TIME = 5; // segundos base de cada carrera (el reloj la estira hasta 90)
 
@@ -119,6 +120,9 @@ export const run = {
     }
     if (!this.active) return;
     this.peak = Math.max(this.peak, state.height);
+    // el piso de la nube gigante ya cruzada queda fijo: la carrera nunca
+    // vuelve más abajo, ni en esta caída ni en la próxima run
+    state.carrera.checkpoint = Math.max(state.carrera.checkpoint, pisoNube(this.peak));
     if (!this.falling) {
       this.left = Math.max(0, this.left - dt);
       if (this.left <= 0) {
@@ -132,12 +136,13 @@ export const run = {
           this.falling = true;
           climb.breakStreak();
           const dur = Math.max(1, Math.min(2.5, 0.8 + state.height * 0.01));
-          climb.startSlip(state.height, 0, dur);
+          climb.startSlip(state.height, pisoNube(state.height), dur);
           this.emit('run-fall');
         }
       }
     } else if (climb.phase === 'idle') {
-      // tocó la tierra: se acredita el botín y queda tumbado un momento
+      // tocó el piso (tierra o última nube cruzada): se acredita el botín
+      // y queda tumbado un momento
       this.finish();
       this.ground = { phase: 'tumbado', t: 1.1, dur: 1.1 };
     }
@@ -174,7 +179,7 @@ export function setMode(m) {
     state.height = state.zen.height;
     state.bestHeight = state.zen.best;
   } else {
-    state.height = 0;
+    state.height = state.carrera.checkpoint;
     state.bestHeight = state.carrera.best;
   }
   climb.resetForMode();

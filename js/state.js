@@ -15,8 +15,10 @@ export const state = {
   // hogar persistente del progreso zen mientras jugás carrera
   zen: { height: 0, best: 0 },
   // modo carrera: hormigas coloradas, récord y mejoras propias.
-  // La altura de una run NO persiste: cada carrera arranca del tallo.
-  carrera: { ants: 0, best: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0 } },
+  // La altura de una run arranca en `checkpoint`: 0 hasta atravesar la
+  // primera nube gigante (ver NUBES en climb.js), después el piso de la
+  // última nube cruzada — para siempre, entre runs y entre sesiones.
+  carrera: { ants: 0, best: 0, checkpoint: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0 } },
   upgrades: { feromonas: 0, reina: 0, nudos: 0, mielada: 0, ofrenda: 0 },
   unlocks: [],
   quest: null, // misión activa: { id, target, progress }
@@ -69,16 +71,17 @@ export function load() {
   const ca = data.carrera || {};
   state.carrera.ants = num(ca.ants);
   state.carrera.best = num(ca.best);
+  state.carrera.checkpoint = num(ca.checkpoint);
   const cup = ca.upgrades || {};
   for (const k of Object.keys(state.carrera.upgrades)) {
     state.carrera.upgrades[k] = Math.floor(num(cup[k]));
   }
-  // la altura activa según el modo: la run de carrera no persiste (arranca en 0)
+  // la altura activa según el modo: la run de carrera arranca en su checkpoint
   if (state.mode === 'zen') {
     state.height = state.zen.height;
     state.bestHeight = state.zen.best;
   } else {
-    state.height = 0;
+    state.height = state.carrera.checkpoint;
     state.bestHeight = state.carrera.best;
   }
   const up = data.upgrades || {};

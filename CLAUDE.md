@@ -62,7 +62,7 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
 
 - `state.js` — objeto `state` + load/save/autosave. Schema del save:
   `{ v:1, mode:'carrera'|'zen', ants, sap, height, bestHeight,
-  zen:{height,best}, carrera:{ants,best,upgrades:{resorte,reloj,eco,botin}},
+  zen:{height,best}, carrera:{ants,best,checkpoint,upgrades:{resorte,reloj,eco,botin}},
   upgrades:{feromonas,reina,nudos,mielada,ofrenda}, unlocks:[ids],
   quest:{id,target,progress}|null, questsDone,
   life:{metros,perfectos,chucaos,lluvias,gastadas,enjambres}, logros:[ids],
@@ -77,8 +77,11 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
 - `carrera.js` — modo carrera: `R_UPGRADES` (4, en coloradas), `timeTotal()`
   (tabla `RELOJ_TIEMPOS`, 5→7→…→90 s),
   objeto `run` (active/left/peak/falling; `onPress()` arranca el reloj,
-  `update(dt)` lo corre y dispara la caída con `climb.startSlip(h,0,dur)`,
-  `finish()` SIEMPRE paga el botín) y `setMode()` (swap de alturas zen↔carrera
+  `update(dt)` lo corre, actualiza `state.carrera.checkpoint` con
+  `pisoNube(peak)` cada frame y dispara la caída con
+  `climb.startSlip(h, pisoNube(h), dur)` — el piso YA NO es siempre 0,
+  `finish()` SIEMPRE paga el botín) y `setMode()` (swap de alturas zen↔carrera,
+  entrando a carrera arranca en `state.carrera.checkpoint` en vez de 0,
   + `climb.resetForMode()`). Importa `state` y `climb` (sin ciclos).
 - `cosmetics.js` — el Ropero: `SKINS` (11 pieles gratis, `skinHex(id)` con
   fallback a ocre) y `COSMETICS` (compra única con hormigas, slots
@@ -112,6 +115,11 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   `filter` (sus animaciones pisan `opacity`). `leapDur` escala con la distancia del vuelo. Pérdidas: corto −1.2, pasado −3.0,
   mala suerte −2.2 (clamp a 0). `climb.mods` = hooks inyectados por main
   (lluvia/niebla: slipBonus/sweetMul). Eventos via `emit()`/`takeEvents()`.
+  **Checkpoint-nube**: `NUBES = [1000, 500000, 1000000]` m, `pisoNube(h)`
+  devuelve la última nube cruzada (corre en ambos modos — ya no solo zen).
+  Ninguna caída baja del piso (`arrive()` usa `Math.max(piso, ...)` en las
+  tres pérdidas). En carrera, cruzar una nube fija `state.carrera.checkpoint`
+  para siempre: la próxima run arranca ahí, no de la tierra (ver `carrera.js`).
 - `events.js` — `branchEvents`, un evento a la vez, cooldown 40-80 s, spawn
   por tabla de pesos: lluvia 0.30 (savia ×2, resbalón +4%, dulce ×0.92,
   ~20 s), chucao 0.25 (12 s posado; tocarlo = bono de hormigas), niebla 0.25
@@ -208,9 +216,6 @@ español, descriptivos. No abrir PR salvo pedido explícito.
 
 ## Ideas pendientes (aprobadas a grandes rasgos, no comprometidas)
 
-- **Checkpoint-nube** (pedido del usuario): a partir de cierta altura el
-  jugador atraviesa una nube gigante que queda como **piso** de la siguiente
-  zona — fondo distinto arriba, modo de avance por etapas.
 - Más eventos de rama (siempre sin quitarle nada al jugador); más logros o un
   prestige suave para el endgame profundo ("bajar a plantar otra rama").
 - Modos de accesibilidad (reducción de movimiento); compartir el récord como

@@ -51,13 +51,13 @@ export function zoneAt(h) {
 }
 
 // ---------- checkpoint-nube ----------
-// Nubes gigantes en los umbrales altos de zona. Al atravesarlas quedan como
-// PISO: ninguna caída (corto/pasado/mala suerte) te baja de la última nube
-// cruzada. Solo en zen — la carrera siempre arranca de la tierra y su caída
-// final tiene que llegar al suelo para cerrar la run.
-export const NUBES = [70, 180, 360];
+// Nubes gigantes en las alturas límite. Al atravesarlas quedan como PISO:
+// ninguna caída (corto/pasado/mala suerte/fin del reloj) te baja de la
+// última nube cruzada. Corre en ambos modos; en carrera además el piso
+// alcanzado se guarda en `state.carrera.checkpoint` y la PRÓXIMA carrera
+// arranca desde ahí en vez de la tierra (ver `carrera.js`).
+export const NUBES = [1000, 500000, 1000000];
 export function pisoNube(h = state.height) {
-  if (state.mode !== 'zen') return 0;
   let p = 0;
   for (const n of NUBES) if (h >= n) p = n;
   return p;
