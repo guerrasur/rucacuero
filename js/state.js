@@ -15,18 +15,30 @@ export const state = {
   // hogar persistente del progreso zen mientras jugás carrera
   zen: { height: 0, best: 0 },
   // modo carrera: hormigas coloradas, récord y mejoras propias.
-  // La altura de una run NO persiste: cada carrera arranca del tallo.
-  carrera: { ants: 0, best: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0 } },
+  // La altura de una run arranca en `checkpoint`: 0 hasta atravesar la
+  // primera nube gigante (ver NUBES en climb.js), después el piso de la
+  // última nube cruzada — para siempre, entre runs y entre sesiones.
+  carrera: { ants: 0, best: 0, checkpoint: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0 } },
   upgrades: { feromonas: 0, reina: 0, nudos: 0, mielada: 0, ofrenda: 0 },
   unlocks: [],
   quest: null, // misión activa: { id, target, progress }
   questsDone: 0,
   // contadores de toda la vida (solo suben): alimentan los logros permanentes
-  life: { metros: 0, perfectos: 0, chucaos: 0, lluvias: 0, gastadas: 0, enjambres: 0 },
+  life: { metros: 0, perfectos: 0, chucaos: 0, lluvias: 0, gastadas: 0, enjambres: 0, nubes: 0 },
   logros: [], // ids de logros ya cumplidos
+  cuento: 0, // pasos completados de "El cuento del monte" (misiones con historia)
+  // opciones de accesibilidad: null = seguir la preferencia del sistema
+  opts: { menosMov: null },
   // ropero: cosméticos comprados y qué lleva puesto (null = default)
   cosmetics: { owned: [], sombrero: null, chiripa: null, piel: 'ocre' },
 };
+
+// Reducción de movimiento: vive acá (y no en ui) porque scene también la
+// necesita y ui ya importa a scene — ponerla en ui armaría un ciclo.
+const mediaCalma = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+export function menosMovimiento() {
+  return state.opts.menosMov ?? (mediaCalma ? mediaCalma.matches : false);
+}
 
 function num(x) {
   const n = Number(x);
@@ -59,16 +71,17 @@ export function load() {
   const ca = data.carrera || {};
   state.carrera.ants = num(ca.ants);
   state.carrera.best = num(ca.best);
+  state.carrera.checkpoint = num(ca.checkpoint);
   const cup = ca.upgrades || {};
   for (const k of Object.keys(state.carrera.upgrades)) {
     state.carrera.upgrades[k] = Math.floor(num(cup[k]));
   }
-  // la altura activa según el modo: la run de carrera no persiste (arranca en 0)
+  // la altura activa según el modo: la run de carrera arranca en su checkpoint
   if (state.mode === 'zen') {
     state.height = state.zen.height;
     state.bestHeight = state.zen.best;
   } else {
-    state.height = 0;
+    state.height = state.carrera.checkpoint;
     state.bestHeight = state.carrera.best;
   }
   const up = data.upgrades || {};
@@ -92,6 +105,9 @@ export function load() {
   state.cosmetics.sombrero = typeof cos.sombrero === 'string' ? cos.sombrero : null;
   state.cosmetics.chiripa = typeof cos.chiripa === 'string' ? cos.chiripa : null;
   state.cosmetics.piel = typeof cos.piel === 'string' ? cos.piel : 'ocre';
+  state.cuento = Math.floor(num(data.cuento));
+  const op = data.opts || {};
+  state.opts.menosMov = typeof op.menosMov === 'boolean' ? op.menosMov : null;
 }
 
 export function save() {

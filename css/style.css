@@ -682,6 +682,75 @@ body.mode-carrera .tab[data-id="hormigas"].sel { color: var(--ocre); border-bott
   margin-left: 6px;
 }
 
+/* estadísticas de vida: grilla de celditas de tinta arriba de los trofeos */
+#vida-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 2px 0 14px;
+}
+.vida-stat {
+  background: rgba(42, 28, 20, .55);
+  border: 2px solid rgba(242, 232, 206, .1);
+  border-radius: 13px;
+  padding: 9px 11px;
+}
+.vida-stat b {
+  display: block;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 19px;
+  color: var(--savia);
+  font-variant-numeric: tabular-nums;
+}
+.vida-stat span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  color: rgba(242, 232, 206, .6);
+}
+
+/* ajustes al pie de la solapa Trofeos: compartir + menos movimiento */
+#ajustes {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(242, 232, 206, .09);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+#compartir-btn {
+  border-color: var(--savia);
+  color: var(--savia);
+  font-size: 14.5px;
+}
+#menosmov-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(242, 232, 206, .75);
+  cursor: pointer;
+  line-height: 1.35;
+}
+#menosmov-check {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  accent-color: var(--savia);
+  cursor: pointer;
+}
+
+/* ---------- menos movimiento ----------
+   la sacudida y las partículas se recortan en canvas (scene.js consulta
+   menosMovimiento()); acá se aquietan las animaciones del DOM. ui.js pone
+   la clase al arrancar según el ajuste guardado o prefers-reduced-motion */
+body.menos-mov #mult.pop,
+body.menos-mov #hint { animation: none; }
+body.menos-mov #feedback.shake { animation: feedback-pop 1.15s ease-out forwards; }
+
 /* ---------- toasts ---------- */
 #toasts {
   position: absolute;

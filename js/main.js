@@ -92,6 +92,8 @@ function frame(now) {
     foggy: !!branchEvents.fog,
     gusting: wind.windy(),
   });
+  // el granizo suena a piedritas sueltas contra la corteza
+  if (branchEvents.hail && Math.random() < dt * 6) audio.hailTick();
 
   const climbEvents = climb.takeEvents();
   for (const ev of climbEvents) {
@@ -112,7 +114,8 @@ function frame(now) {
         break;
       case 'perfect':
       case 'chain':
-        audio.perfect();
+        // la racha se escucha: cada perfecto encadenado sube un escalón
+        audio.perfect(ev.streak || climb.perfectStreak || 1);
         scene.burst('spark');
         if (zen) quests.note('grab', 1, { windy: wind.windy() });
         if (ev.type === 'perfect') {
@@ -145,6 +148,12 @@ function frame(now) {
         ui.showBanner(ev.zone.name, `${ev.zone.at} m`);
         audio.zoneFanfare();
         break;
+      case 'nube':
+        // checkpoint: la nube cruzada queda como piso de la etapa
+        ui.showBanner('¡Atravesaste la nube!', `nuevo piso: ${ev.piso} m — de acá no se baja`);
+        audio.nubeChime();
+        logros.bump('nubes');
+        break;
     }
   }
   // récord y misiones son métricas derivadas: se chequean solo cuando hubo eventos
@@ -166,6 +175,24 @@ function frame(now) {
       case 'fog-start':
         ui.showBanner('Niebla', 'savia ×1,5 · zona dulce angosta');
         break;
+      case 'dew-start':
+        ui.showBanner('Rocío', 'savia ×1,5 · zona dulce más ancha');
+        audio.dewChime();
+        break;
+      case 'dew-end':
+        logros.bump('lluvias'); // el rocío también curte de agua
+        break;
+      case 'hail-start':
+        ui.showBanner('Granizo', 'aguantá: las hormigas juntan el granizo dulce');
+        break;
+      case 'hail-end': {
+        // el bono del granizo: siempre suma, jamás resta
+        const bonus = Math.max(20, Math.round(economy.antRate() * 35));
+        state.ants += bonus;
+        ui.flash(`+${bonus.toLocaleString('es-AR')} hormigas`, 'good');
+        audio.shimmer();
+        break;
+      }
       case 'swarm-spawn':
         audio.shimmer();
         break;
@@ -215,6 +242,8 @@ function frame(now) {
   for (const ev of quests.takeEvents()) {
     if (ev.type === 'quest-done') {
       ui.questToast(ev.text, ev.reward);
+      // paso del cuento: el relato se muestra en el banner central
+      if (ev.relato) ui.showBanner('El cuento del monte', ev.relato);
       logros.checkDerived();
     }
   }
