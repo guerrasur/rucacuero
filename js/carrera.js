@@ -5,6 +5,7 @@
 // exponencialmente y sin tope — eso vive en climb.js (jumpMul).
 import { state, save } from './state.js';
 import { climb } from './climb.js';
+import { prestigeMul } from './economy.js';
 
 export const RUN_TIME = 5; // segundos base de cada carrera (el reloj la estira hasta 90)
 
@@ -113,7 +114,7 @@ export const run = {
   },
 
   reward() {
-    return Math.round(this.peak * 2 * (1 + 0.25 * state.carrera.upgrades.botin));
+    return Math.round(this.peak * 2 * (1 + 0.25 * state.carrera.upgrades.botin) * prestigeMul());
   },
 
   update(dt) {
@@ -169,18 +170,32 @@ export const run = {
   },
 };
 
+// Anillos del monte que paga bajar desde una altura H. Cambiás la altura que
+// igual iba a cero por un bono permanente. Curva con retornos decrecientes;
+// por debajo del piso no da nada (el rebirth igual funciona). Tunable.
+const ALTURA_MIN_ANILLO = 20;
+export function anillosPorAltura(h) {
+  if (h < ALTURA_MIN_ANILLO) return 0;
+  return Math.floor(Math.sqrt(h / 8));
+}
+
 // "Rebirth" suave: bajar a la tierra y volver a empezar desde la zona 0, sin
-// perder hormigas, savia, mejoras ni récord. Resetea la altura del modo activo.
+// perder hormigas, savia, mejoras ni récord. Resetea la altura del modo activo
+// y, a cambio de esa altura sacrificada, paga anillos del monte (prestige
+// permanente, solo suma). Devuelve cuántos anillos ganó para la UI.
 export function volverAZona0() {
+  const ganados = anillosPorAltura(state.height);
   if (state.mode === 'carrera') {
     run.finish(); // si había una run, paga lo ganado (nada se pierde)
     run.ground = null;
   } else {
     state.zen.height = 0;
   }
+  state.prestige.anillos += ganados; // capa aditiva: jamás baja
   state.height = 0;
   climb.resetForMode();
   save();
+  return ganados;
 }
 
 // Cambio de modo: guarda la altura del modo saliente y carga la del entrante.

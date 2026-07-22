@@ -31,7 +31,7 @@ Formato de números: `toLocaleString('es-AR')` (coma decimal).
 
 ## Reglas de diseño INVIOLABLES (vienen del pedido del usuario)
 
-1. **Tres capas de progreso aisladas**:
+1. **Cuatro capas de progreso aisladas**:
    - **Hormigas**: moneda pasiva, se genera solo con el juego abierto, se
      gasta en mejoras. Nada puede *quitarle* hormigas al jugador salvo sus
      propias compras (el chucao regala, jamás roba).
@@ -42,6 +42,12 @@ Formato de números: `toLocaleString('es-AR')` (coma decimal).
      quita hormigas/savia/récord.
    - **Savia**: pasiva y constante, **nunca se gasta ni baja**; sus umbrales
      desbloquean mejoras funcionales permanentes.
+   - **Prestige (Anillos del monte)**: capa PURAMENTE ADITIVA, **solo sube,
+     jamás baja**. El rebirth voluntario cambia la altura que se sacrifica por
+     anillos permanentes (`carrera.anillosPorAltura(h)=floor(√(h/8))`, piso
+     20 m); cada anillo suma un bono fijo a la generación de hormigas —negras y
+     coloradas— vía `economy.prestigeMul()=1+0,02·anillos`. NO toca la savia
+     (sus umbrales son fijos). Vive en `state.prestige.anillos`.
 2. **Sin progreso offline**: no se simula tiempo al reabrir. El loop usa
    `requestAnimationFrame` con `dt` clampeado a 0.05 s — eso ya lo garantiza;
    no romperlo.
@@ -68,12 +74,15 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   upgrades:{feromonas,reina,nudos,mielada,ofrenda}, unlocks:[ids],
   quest:{id,target,progress}|null, questsDone,
   life:{metros,perfectos,chucaos,lluvias,gastadas,enjambres}, logros:[ids],
+  cuento, prestige:{anillos}, opts:{menosMov:bool|null},
   cosmetics:{owned:[ids], sombrero:id|null, chiripa:id|null, piel:id} }`.
   Migración aditiva sin bump de versión: campos faltantes → defaults.
   Clave aparte: `rucacuero_muted` ('1'/'0').
 - `economy.js` — `UPGRADES` (5; `ofrenda` es repetible sin tope, +5%/nivel,
   costo ×3, `requiresAllMaxed`), `SAP_UNLOCKS` (umbrales 50/150/400/900/2000),
-  `antRate()`, `SAP_RATE=0.2`, `slipChance(windy)` (8% base ×0.82^nudos,
+  `antRate()` (multiplica por `prestigeMul()`), `SAP_RATE=0.2`,
+  `PRESTIGE_RATE=0.02` + `prestigeMul()` (bono aditivo de anillos, solo a
+  hormigas), `slipChance(windy)` (8% base ×0.82^nudos,
   piso 1%), `tick(dt, sapMul, genAnts)` (negras solo en zen; savia siempre),
   `buy()`.
 - `carrera.js` — modo carrera: `R_UPGRADES` (4, en coloradas), `timeTotal()`
@@ -85,8 +94,10 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   tierra con `climb.startSlip(h, 0, dur)`, `finish()` SIEMPRE paga el botín) y
   `setMode()` (swap de alturas zen↔carrera, la carrera SIEMPRE arranca desde la
   tierra, + `climb.resetForMode()`). `volverAZona0()` es el "rebirth" suave:
-  baja la altura del modo activo a 0 sin tocar hormigas/savia/mejoras/récord.
-  Importa `state` y `climb` (sin ciclos).
+  baja la altura del modo activo a 0 sin tocar hormigas/savia/mejoras/récord y
+  paga anillos del monte por la altura sacrificada (`anillosPorAltura(h)`,
+  prestige aditivo; devuelve cuántos ganó para la UI).
+  Importa `state`, `climb` y `prestigeMul` de economy (sin ciclos).
 - `cosmetics.js` — el Ropero: `SKINS` (11 pieles gratis, `skinHex(id)` con
   fallback a ocre) y `COSMETICS` (compra única con hormigas, slots
   `sombrero`/`chiripa`; `buyCosmetic()` auto-equipa, `setEquipped()`,
@@ -122,19 +133,25 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   `emit()`/`takeEvents()`. Cruzar una frontera de zona emite `'zone'` (banner
   con el nombre de la zona).
 - `events.js` — `branchEvents`, un evento a la vez, cooldown 40-80 s, spawn
-  por tabla de pesos: lluvia 0.30 (savia ×2, resbalón +4%, dulce ×0.92,
-  ~20 s), chucao 0.25 (12 s posado; tocarlo = bono de hormigas), niebla 0.25
-  (solo con height>12: savia ×1.5, dulce ×0.88, SIN resbalón extra, ~20 s) y
-  enjambre de luciérnagas 0.20 (10 s; tocarlo = bono de hormigas via
-  `tapSwarm()`). Si `state.quest.id==='bird'`, el próximo spawn garantiza
-  pájaro.
+  por tabla de pesos: lluvia 0.26 (savia ×2, resbalón +4%, dulce ×0.92,
+  ~20 s), chucao 0.22 (12 s posado; tocarlo = bono de hormigas), enjambre de
+  luciérnagas 0.18 (10 s; tocarlo = bono via `tapSwarm()`), rocío 0.16 (el
+  ÚNICO clima que ENSANCHA la dulce ×1.15, savia ×1.5, sin resbalón, ~16-22 s)
+  y —según altura— niebla 0.20 (height>12: savia ×1.5, dulce ×0.88, SIN
+  resbalón, ~20 s) y granizo 0.14 (height>25: puro espectáculo, `hail-end`
+  paga un bono de hormigas). Si `state.quest.id==='bird'`, el próximo spawn
+  garantiza pájaro. Ningún evento resta nada.
 - `quests.js` — pool de 6 misiones rotativas (una activa), progreso en
   `state.quest`, recompensa en hormigas que escala con `questsDone`.
-  `note(kind, amount, ctx)` es el único punto de entrada.
-- `logros.js` — 12 logros permanentes (`LOGROS`): métricas acumulativas en
+  `note(kind, amount, ctx)` es el único punto de entrada. Además `CUENTO` ("El
+  cuento del monte"): 5 pasos con `relato`, intercalado cada 3 misiones
+  comunes, progreso en `state.cuento`, paga doble y emite `quest-done` con el
+  texto de la historia.
+- `logros.js` — 17 logros permanentes (`LOGROS`): métricas acumulativas en
   `state.life` (via `bump(metric, amount)`, único entry point) + derivadas
-  récord/misiones (via `checkDerived()`, llamada por main solo cuando hubo
-  eventos). Recompensa en hormigas, solo suma. UI: solapa Trofeos de la tienda.
+  récord/misiones/cuento/anillos (via `checkDerived()`, llamada por main —y por
+  ui tras el rebirth— solo cuando hubo eventos). Recompensa en hormigas, solo
+  suma. UI: solapa Trofeos de la tienda.
 - `scene.js` — render canvas (contexto `{alpha:false}`). Cámara sigue
   `climb.visualHeight()`; `CHAR_Y=0.7`, `VISIBLE_M=9`. Fondo pareja: la noche
   del monte (`C.noche`) en toda la subida. Dibuja: follaje parallax (sprites
@@ -163,7 +180,14 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   HUD/toasts/chip durante la carga (la zona de puntería queda limpia), mute
   (los SVG no tienen `.hidden`: usar `toggleAttribute`). Al pie de la solapa
   Trofeos vive el **rebirth** discreto (`#rebirth-btn`): dos toques para
-  confirmar (`armarRebirth`/`desarmarRebirth`) → `carrera.volverAZona0()`.
+  confirmar (`armarRebirth` muestra el preview de anillos a ganar /
+  `desarmarRebirth`) → `carrera.volverAZona0()`, cuyo retorno arma el banner
+  "+N anillos del monte". La solapa Trofeos también lista las estadísticas de
+  vida (`#vida-stats`), con los anillos del monte y el bono de hormigas.
+- `compartir.js` — comparte el récord como estampa xilográfica: `drawEstampa()`
+  pinta una tarjeta 1080×1350 (noche/rama/nudos/savia/escalador con
+  `drawFigure`+`idlePose`, récord = máx de zen/carrera) y `compartirRecord()`
+  usa Web Share API con fallback a descarga PNG. Botón `#compartir-btn` en ui.
 - `audio.js` — todo procedural con WebAudio (sin assets). `ensure()` debe
   llamarse desde un gesto. Loops con estado: carga (osc), lluvia (noise) y
   ambiente (pad de viento lowpass 180 Hz + grillos; `ambientUpdate(dt, ctx)`
@@ -213,17 +237,23 @@ ven la versión fresca. Los PNG de `icons/` se generaron una vez desde
 
 ## Git
 
-Branch de trabajo actual: `claude/zone-transition-clouds-i0p9s5` (los
-branches de iteraciones anteriores ya se mergearon a `main`). Commits en
-español, descriptivos. No abrir PR salvo pedido explícito.
+Branch de trabajo actual: `claude/game-construction-jh4fm3` (los branches de
+iteraciones anteriores ya se mergearon a `main`). Commits en español,
+descriptivos. No abrir PR salvo pedido explícito.
 
 ## Ideas pendientes (aprobadas a grandes rasgos, no comprometidas)
 
-- Más eventos de rama (siempre sin quitarle nada al jugador); más logros. El
-  "bajar a plantar otra rama" ya existe como rebirth (volver a la zona 0), pero
-  todavía sin recompensa/prestige — queda abierto darle un bonus permanente.
-- Modos de accesibilidad (reducción de movimiento); compartir el récord como
-  imagen xilográfica.
-- Clima nuevo (granizo/rocío que solo suman o avisan, jamás restan); audio de
-  racha ascendente (un tono por perfecto encadenado); estadísticas de vida en
-  la solapa Trofeos; misiones encadenadas con una historia corta del monte.
+Ya entregado en iteraciones previas: rocío y granizo (climas que solo suman),
+menos-movimiento (accesibilidad), compartir estampa (`compartir.js`), audio de
+racha ascendente, estadísticas de vida en Trofeos, "El cuento del monte"
+(misiones encadenadas con `state.cuento`), más logros (17) y el **prestige del
+rebirth** (Anillos del monte).
+
+Siguen abiertas:
+
+- Más eventos de rama (siempre sin quitarle nada al jugador) y más logros.
+- Darle a los **Anillos del monte** algo más que el bono de hormigas: un
+  cosmético o desbloqueo que solo se consiga con prestige alto, o una segunda
+  curva de anillos. (La base ya existe en `state.prestige`.)
+- Compartir el récord como imagen animada; más modos de accesibilidad.
+- Misiones encadenadas con más historia del monte (ampliar `CUENTO`).

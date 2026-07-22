@@ -81,9 +81,17 @@ export const SAP_UNLOCKS = [
 
 export const SAP_RATE = 0.2; // savia por segundo, constante, solo con el juego abierto
 
+// Prestige: cada "anillo del monte" suma un bono FIJO y permanente a la
+// generación de hormigas (negras y coloradas). Aditivo, sin tope. NO toca la
+// savia — sus umbrales son fijos (regla inviolable).
+export const PRESTIGE_RATE = 0.02; // +2% de hormigas por anillo
+export function prestigeMul() {
+  return 1 + PRESTIGE_RATE * state.prestige.anillos;
+}
+
 export function antRate() {
   const u = state.upgrades;
-  return (0.5 + 0.35 * u.feromonas + 2.5 * u.mielada) * Math.pow(1.5, u.reina) * (1 + 0.05 * u.ofrenda);
+  return (0.5 + 0.35 * u.feromonas + 2.5 * u.mielada) * Math.pow(1.5, u.reina) * (1 + 0.05 * u.ofrenda) * prestigeMul();
 }
 
 // Probabilidad de resbalón por mala suerte tras un agarre limpio.

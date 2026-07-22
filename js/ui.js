@@ -10,7 +10,7 @@ import {
   nextLockedUnlock,
 } from './economy.js';
 import { climb, wind } from './climb.js';
-import { SAP_RATE, antRate as antRateFn, slipChance } from './economy.js';
+import { SAP_RATE, antRate as antRateFn, slipChance, prestigeMul } from './economy.js';
 import * as audio from './audio.js';
 import * as quests from './quests.js';
 import * as logros from './logros.js';
@@ -142,9 +142,15 @@ export function init() {
       return;
     }
     desarmarRebirth();
-    carrera.volverAZona0();
+    const anillos = carrera.volverAZona0();
+    logros.checkDerived(); // por si el rebirth cerró el logro de anillos
     closeShop(); // volvés al juego y ves la zona 0 (el HUD se actualiza solo)
-    showBanner('De vuelta en la tierra', 'zona 0 · a trepar de nuevo');
+    showBanner(
+      'De vuelta en la tierra',
+      anillos > 0
+        ? `zona 0 · +${fmtInt(anillos)} ${anillos === 1 ? 'anillo' : 'anillos'} del monte`
+        : 'zona 0 · a trepar de nuevo',
+    );
     audio.rebirthChime();
   });
   document.body.classList.toggle('menos-mov', menosMovimiento());
@@ -230,7 +236,11 @@ function closeShop() {
 function armarRebirth() {
   rebirthArmado = true;
   els.rebirthBtn.classList.add('armado');
-  els.rebirthBtn.textContent = '¿Seguro? Tocá de nuevo para bajar a la zona 0';
+  const anillos = carrera.anillosPorAltura(state.height);
+  els.rebirthBtn.textContent =
+    anillos > 0
+      ? `¿Seguro? Bajás a la zona 0 y ganás +${fmtInt(anillos)} ${anillos === 1 ? 'anillo' : 'anillos'}`
+      : '¿Seguro? Tocá de nuevo para bajar a la zona 0';
   clearTimeout(rebirthTimer);
   rebirthTimer = setTimeout(desarmarRebirth, 4000);
 }
@@ -540,6 +550,8 @@ function refreshShop(force) {
     ['lluvias y rocíos aguantados', fmtInt(state.life.lluvias)],
     ['enjambres tocados', fmtInt(state.life.enjambres)],
     ['hormigas gastadas', fmtInt(state.life.gastadas)],
+    ['anillos del monte', fmtInt(state.prestige.anillos)],
+    ['bono de hormigas', `+${Math.round((prestigeMul() - 1) * 100)}%`],
   ];
   const vidaKey = vida.map(v => v[1]).join('|');
   if (shopCache.vida !== vidaKey) {
