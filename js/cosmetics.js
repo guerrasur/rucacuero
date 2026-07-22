@@ -19,12 +19,20 @@ export const SKINS = [
 
 // slots: 'sombrero' (sobre la cabeza; biuti en cambio reemplaza la cara) y
 // 'chiripa' (la prenda de cadera; null = el taparrabos hueso de siempre)
+// Cosméticos con `reqAnillos` no se compran con hormigas: cuestan 0 y se
+// RECLAMAN gratis al llegar a ese número de anillos del monte (prestige). El
+// prestige es el precio, y como es aditivo (jamás baja) nunca se le quita nada
+// al jugador. Son la recompensa exclusiva de subir anillos.
 export const COSMETICS = [
   { id: 'cassco', name: 'Cassco', slot: 'sombrero', cost: 400, desc: 'Casco de bici verde lima con ventilaciones. Seguridad ante todo.' },
   { id: 'creci', name: 'Creci', slot: 'chiripa', cost: 600, desc: 'Calzones rosas con vivos. Comodidad de otra época.' },
   { id: 'pretencio', name: 'Pretencio', slot: 'sombrero', cost: 900, desc: 'Boina negra. Ahora opinás de cine.' },
   { id: 'velece', name: 'Velece', slot: 'sombrero', cost: 2000, desc: 'Un cono de obra naranja con bandas. Nadie sabe de qué obra.' },
   { id: 'biuti', name: 'Biuti', slot: 'sombrero', cost: 5000, desc: 'Una cara nueva, bellísima. Mira para el otro lado, pero bellísima.' },
+  // Exclusivos del monte: se reclaman con anillos, no con hormigas.
+  { id: 'corona', name: 'Corona de líquenes', slot: 'sombrero', cost: 0, reqAnillos: 3, desc: 'Un aro de líquenes que solo crece en los que ya bajaron y volvieron. 3 anillos del monte.' },
+  { id: 'capa', name: 'Chiripá de musgo', slot: 'chiripa', cost: 0, reqAnillos: 8, desc: 'Musgo hondo tejido en la cadera. Abriga a los que hicieron del monte una costumbre. 8 anillos.' },
+  { id: 'astas', name: 'Astas del monte', slot: 'sombrero', cost: 0, reqAnillos: 20, desc: 'Astas de guardamonte. Nadie las tiene sin haber sacrificado muchas alturas. 20 anillos.' },
 ];
 
 export function skinHex(id) {
@@ -36,8 +44,14 @@ export function owned(id) {
   return state.cosmetics.owned.includes(id);
 }
 
+// ¿el cosmético está desbloqueado? Los de prestige piden anillos del monte;
+// el resto siempre está disponible (reqAnillos ausente).
+export function unlockedByAnillos(def) {
+  return !def.reqAnillos || state.prestige.anillos >= def.reqAnillos;
+}
+
 export function canBuyCosmetic(def) {
-  return !owned(def.id) && Math.floor(state.ants) >= def.cost;
+  return !owned(def.id) && unlockedByAnillos(def) && Math.floor(state.ants) >= def.cost;
 }
 
 export function buyCosmetic(def) {

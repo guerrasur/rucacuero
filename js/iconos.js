@@ -17,6 +17,12 @@ export const TROFEO_SVG = svg(
   '<path d="M8 4h8v5.5a4 4 0 0 1-8 0z" fill="currentColor"/><path d="M8 5H4.5c0 3.2 1.6 4.8 3.5 4.8M16 5h3.5c0 3.2-1.6 4.8-3.5 4.8M12 13.5V16"/><path d="M8.5 19.5c0-1.9 1.5-3.2 3.5-3.2s3.5 1.3 3.5 3.2z" fill="currentColor"/>'
 );
 
+// Anillos del monte (prestige): tres anillos concéntricos como el corte de un
+// tronco. Se usa en la etiqueta de los cosméticos bloqueados por prestige.
+export const ANILLO_SVG = svg(
+  '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.6"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/>'
+);
+
 export const ICONOS = {
   // ---- mejoras de hormigas negras (zen) ----
   feromonas: svg(

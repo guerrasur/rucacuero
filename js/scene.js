@@ -1133,6 +1133,8 @@ export function drawFigure(ctx, t, pose, cos) {
 
   if (cos.chiripa === 'creci') {
     drawCreci(ctx, hipW, hipY);
+  } else if (cos.chiripa === 'capa') {
+    drawCapa(ctx, hipW, hipY);
   } else {
     // taparrabos hueso
     ctx.beginPath();
@@ -1204,6 +1206,37 @@ function drawCreci(ctx, hipW, hipY) {
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(hipW - 1, hipY + 10, 4, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+}
+
+// chiripá de musgo (prestige): pollerita verde de borde dentado con puntadas
+// hueso. También se usa para su icono. Mismo lenguaje que el taparrabos/Creci.
+function drawCapa(ctx, hipW, hipY) {
+  const w = hipW + 4;
+  const p = new Path2D();
+  p.moveTo(-w, hipY - 5);
+  p.lineTo(w, hipY - 5);
+  p.lineTo(w, hipY + 6);
+  // borde inferior dentado, como musgo colgando
+  const teeth = 6;
+  for (let i = 0; i <= teeth; i++) {
+    const x = w - (2 * w) * (i / teeth);
+    p.lineTo(x, hipY + (i % 2 === 0 ? 6 : 11));
+  }
+  p.lineTo(-w, hipY + 6);
+  p.closePath();
+  ctx.fillStyle = C.musgo;
+  ctx.fill(p);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = C.tinta;
+  ctx.lineJoin = 'round';
+  ctx.stroke(p);
+  // puntada hueso a la cintura
+  ctx.strokeStyle = C.hueso;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(-w + 1.5, hipY - 2.4);
+  ctx.lineTo(w - 1.5, hipY - 2.4);
   ctx.stroke();
 }
 
@@ -1339,6 +1372,49 @@ function drawHat(ctx, id, hy, headR) {
     ctx.lineWidth = 4;
     ctx.strokeStyle = C.tinta;
     ctx.stroke();
+  } else if (id === 'corona') {
+    // corona de líquenes (prestige): aro de musgo con lóbulos verdes
+    const cy = hy - headR + 1.5;
+    ctx.beginPath();
+    ctx.ellipse(0, cy, headR + 2.5, 3.6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C.musgo;
+    ctx.fill();
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = C.tinta;
+    ctx.stroke();
+    for (const [lx, ly, r] of [[-9, 1, 2.6], [-5, -2.5, 3], [0, -4, 3.3], [5, -2.5, 3], [9, 1, 2.6]]) {
+      ctx.beginPath();
+      ctx.arc(lx, cy + ly, r, 0, Math.PI * 2);
+      ctx.fillStyle = C.verde;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = C.tinta;
+      ctx.stroke();
+    }
+    // brote hueso al centro
+    ctx.beginPath();
+    ctx.arc(0, cy - 4, 1.4, 0, Math.PI * 2);
+    ctx.fillStyle = C.hueso;
+    ctx.fill();
+  } else if (id === 'astas') {
+    // astas del monte (prestige): dos cuernas hueso que suben de los lados
+    const baseY = hy - headR * 0.35;
+    ctx.lineCap = 'round';
+    for (const dir of [-1, 1]) {
+      const p = new Path2D();
+      p.moveTo(dir * (headR - 1.5), baseY);
+      p.quadraticCurveTo(dir * (headR + 6), baseY - 7, dir * (headR + 3), baseY - 17);
+      p.moveTo(dir * (headR + 4.5), baseY - 6.5);
+      p.lineTo(dir * (headR + 10), baseY - 9.5);
+      p.moveTo(dir * (headR + 3.5), baseY - 12.5);
+      p.lineTo(dir * (headR + 8.5), baseY - 16);
+      ctx.strokeStyle = C.tinta;
+      ctx.lineWidth = 5;
+      ctx.stroke(p);
+      ctx.strokeStyle = C.hueso;
+      ctx.lineWidth = 2.4;
+      ctx.stroke(p);
+    }
   }
 }
 
@@ -1391,7 +1467,8 @@ export function drawCosmeticIcon(ctx, def, size) {
     ctx.translate(size / 2, size / 2);
     ctx.scale(s * 1.5, s * 1.5);
     ctx.translate(0, -1.5);
-    drawCreci(ctx, 8, 0);
+    if (def.id === 'capa') drawCapa(ctx, 8, 0);
+    else drawCreci(ctx, 8, 0);
   }
   ctx.restore();
 }
