@@ -634,6 +634,10 @@ body.mode-carrera .tab[data-id="hormigas"].sel { color: var(--ocre); border-bott
 }
 .card.cos.probando { background: rgba(240, 163, 42, .09); }
 .card.cos.puesta { background: rgba(127, 166, 54, .10); }
+/* cosmético de prestige aún bloqueado: la carta se prueba pero se atenúa el ícono */
+.card.cos.bloqueada .icono { opacity: .5; }
+/* la etiqueta de anillos requeridos usa el acento savia para leer como premio */
+.buy.locked { border-color: rgba(240, 163, 42, .5); color: rgba(240, 163, 42, .75); }
 
 #skin-grid {
   display: flex;

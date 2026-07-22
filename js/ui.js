@@ -18,7 +18,7 @@ import * as cosmetics from './cosmetics.js';
 import * as carrera from './carrera.js';
 import { compartirRecord } from './compartir.js';
 import { drawProbador, drawCosmeticIcon } from './scene.js';
-import { ICONOS, ANT_SVG, SAP_SVG, TROFEO_SVG } from './iconos.js';
+import { ICONOS, ANT_SVG, SAP_SVG, TROFEO_SVG, ANILLO_SVG } from './iconos.js';
 
 const $ = id => document.getElementById(id);
 
@@ -433,17 +433,29 @@ function refreshRopero(force) {
       const def = cosmetics.COSMETICS.find(d => d.id === card.dataset.id);
       const puesto = state.cosmetics[def.slot] === def.id;
       const probando = probador[def.slot] === def.id;
-      // estado del botón: comprar (con/sin fondos) / equipar / sacarse
+      // estado del botón: bloqueado (falta prestige) / reclamar (anillos, gratis)
+      // / comprar (con/sin fondos) / equipar / sacarse
       let mode;
-      if (!cosmetics.owned(def.id)) mode = cosmetics.canBuyCosmetic(def) ? 'comprar' : 'sin-fondos';
-      else mode = puesto ? 'puesto' : 'guardado';
+      if (cosmetics.owned(def.id)) mode = puesto ? 'puesto' : 'guardado';
+      else if (!cosmetics.unlockedByAnillos(def)) mode = 'bloqueado';
+      else if (def.reqAnillos) mode = 'reclamar';
+      else mode = cosmetics.canBuyCosmetic(def) ? 'comprar' : 'sin-fondos';
       const key = `${mode}|${probando}`;
       if (roperoCache[def.id] === key) continue;
       roperoCache[def.id] = key;
       card.classList.toggle('probando', probando && !puesto);
       card.classList.toggle('puesta', puesto);
+      card.classList.toggle('bloqueada', mode === 'bloqueado');
       const btn = card.querySelector('button');
-      if (mode === 'comprar' || mode === 'sin-fondos') {
+      if (mode === 'bloqueado') {
+        btn.className = 'buy locked';
+        btn.innerHTML = `${ANILLO_SVG}<span class="cost">${fmtInt(def.reqAnillos)}</span>`;
+        btn.disabled = true;
+      } else if (mode === 'reclamar') {
+        btn.className = 'equip';
+        btn.textContent = 'Reclamar';
+        btn.disabled = false;
+      } else if (mode === 'comprar' || mode === 'sin-fondos') {
         btn.className = 'buy';
         btn.innerHTML = `${ANT_SVG}<span class="cost">${fmtInt(def.cost)}</span>`;
         btn.disabled = mode === 'sin-fondos';
