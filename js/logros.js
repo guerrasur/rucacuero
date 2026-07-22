@@ -21,6 +21,7 @@ export const LOGROS = [
   { id: 'metros20000',  metric: 'metros',    at: 20000, name: 'El que no baja más',     desc: 'Ganá 20.000 m trepando en total.',           reward: 25000 },
   { id: 'perfectos500', metric: 'perfectos', at: 500,  name: 'Manos de ámbar',          desc: 'Hacé 500 saltos perfectos.',                 reward: 12000 },
   { id: 'cuento5',      metric: 'cuento',    at: 5,    name: 'El cuento completo',      desc: 'Terminá los 5 pasos de El cuento del monte.', reward: 2000 },
+  { id: 'anillos10',    metric: 'anillos',   at: 10,   name: 'El monte en anillos',     desc: 'Juntá 10 anillos del monte plantando ramas.', reward: 5000 },
 ];
 
 const queue = [];
@@ -29,6 +30,7 @@ function metricValue(metric) {
   if (metric === 'best') return state.bestHeight;
   if (metric === 'quests') return state.questsDone;
   if (metric === 'cuento') return state.cuento;
+  if (metric === 'anillos') return state.prestige.anillos;
   return state.life[metric] || 0;
 }
 
@@ -57,6 +59,7 @@ export function checkDerived() {
   check('best');
   check('quests');
   check('cuento');
+  check('anillos');
 }
 
 export function progressFor(def) {

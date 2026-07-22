@@ -25,6 +25,11 @@ export const state = {
   life: { metros: 0, perfectos: 0, chucaos: 0, lluvias: 0, gastadas: 0, enjambres: 0 },
   logros: [], // ids de logros ya cumplidos
   cuento: 0, // pasos completados de "El cuento del monte" (misiones con historia)
+  // prestige: "Anillos del monte". Capa de progreso PURAMENTE ADITIVA — solo
+  // sube, jamás baja. Se ganan al hacer el rebirth voluntario (cambiás la
+  // altura que igual iba a cero por anillos permanentes) y dan un bono fijo a
+  // la generación de hormigas (nunca a la savia, cuyos umbrales son fijos).
+  prestige: { anillos: 0 },
   // opciones de accesibilidad: null = seguir la preferencia del sistema
   opts: { menosMov: null },
   // ropero: cosméticos comprados y qué lleva puesto (null = default)
@@ -103,6 +108,7 @@ export function load() {
   state.cosmetics.chiripa = typeof cos.chiripa === 'string' ? cos.chiripa : null;
   state.cosmetics.piel = typeof cos.piel === 'string' ? cos.piel : 'ocre';
   state.cuento = Math.floor(num(data.cuento));
+  state.prestige.anillos = Math.floor(num((data.prestige || {}).anillos));
   const op = data.opts || {};
   state.opts.menosMov = typeof op.menosMov === 'boolean' ? op.menosMov : null;
 }
