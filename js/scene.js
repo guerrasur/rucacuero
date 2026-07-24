@@ -23,6 +23,7 @@ const C = {
 
 const VISIBLE_M = 9; // metros de rama visibles en pantalla
 const CHAR_Y = 0.7; // fracción de pantalla donde vive el personaje
+const FEET_OFFSET = 26; // separación entre el ancla yOf(h) (cadera) y los pies del escalador
 
 // arrays de guiones constantes: evitan alocar en cada frame
 const DASH_STRIA = [26, 21];
@@ -509,15 +510,28 @@ export class Scene {
       if (!state.carrera.pisos[i]) continue;
       const p = PISOS[i];
       const y = this.yOf(p);
-      if (y < -60 || y > this.H + 60) continue;
+      if (y < -60 || y > this.H + 100) continue;
       this.drawPlataforma(this.branchX(p), y);
     }
   }
 
-  drawPlataforma(bx, y) {
+  // lineY: altura exacta del checkpoint (donde cruza la línea entrecortada).
+  // La superficie caminable queda a FEET_OFFSET de ahí, a la altura real de
+  // los pies del escalador cuando aterriza justo en ese piso (drawClimber
+  // usa el mismo desfasaje que drawGround). Un zócalo de madera entre ambas
+  // alturas tapa la línea y conecta visualmente la plataforma con el nudo.
+  drawPlataforma(bx, lineY) {
     const { ctx } = this;
     const hw = this.bw / 2 + 16; // sobresale un poco del tronco, como un collar
     const th = 16; // grosor del tablón
+    const feetY = lineY + FEET_OFFSET;
+
+    // zócalo: tapa la línea entrecortada entre el checkpoint y la superficie
+    ctx.fillStyle = C.maderaOsc;
+    ctx.strokeStyle = C.tinta;
+    ctx.lineWidth = 3;
+    ctx.fillRect(bx - hw, lineY, hw * 2, FEET_OFFSET);
+    ctx.strokeRect(bx - hw, lineY, hw * 2, FEET_OFFSET);
 
     // puntales: un par de vigas en diagonal que clavan la plataforma al tronco
     ctx.lineWidth = 3;
@@ -526,8 +540,8 @@ export class Scene {
     for (const side of [-1, 1]) {
       const outerX = bx + side * hw * 0.85;
       const innerX = bx + side * (this.bw / 2 - 2);
-      const topY = y + th;
-      const botY = y + th + 24;
+      const topY = feetY + th;
+      const botY = feetY + th + 24;
       ctx.beginPath();
       ctx.moveTo(outerX, topY);
       ctx.lineTo(innerX, botY);
@@ -545,9 +559,9 @@ export class Scene {
     for (let k = 0; k < planks; k++) {
       const x = bx - hw + k * pw;
       ctx.fillStyle = k % 2 === 0 ? C.madera : C.maderaOsc;
-      ctx.fillRect(x, y, pw, th);
+      ctx.fillRect(x, feetY, pw, th);
       ctx.strokeStyle = C.tinta;
-      ctx.strokeRect(x, y, pw, th);
+      ctx.strokeRect(x, feetY, pw, th);
     }
     // veta de madera: un trazo curvo por tabla
     ctx.strokeStyle = C.tinta;
@@ -556,8 +570,8 @@ export class Scene {
     for (let k = 0; k < planks; k++) {
       const x = bx - hw + k * pw + pw * 0.5;
       ctx.beginPath();
-      ctx.moveTo(x - pw * 0.3, y + th * 0.35);
-      ctx.quadraticCurveTo(x, y + th * 0.55, x + pw * 0.3, y + th * 0.35);
+      ctx.moveTo(x - pw * 0.3, feetY + th * 0.35);
+      ctx.quadraticCurveTo(x, feetY + th * 0.55, x + pw * 0.3, feetY + th * 0.35);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
@@ -566,7 +580,7 @@ export class Scene {
   // ---------- la tierra: el piso curvo del que sale el tallo ----------
   drawGround() {
     const { ctx } = this;
-    const sy = this.yOf(0) + 26; // la superficie pasa por los pies del escalador
+    const sy = this.yOf(0) + FEET_OFFSET; // la superficie pasa por los pies del escalador
     if (sy > this.H + 400) return; // quedó muy abajo: ni se dibuja
     const R = this.W * 1.1; // curva suave que se escapa por los bordes
     const cx = this.W / 2;
