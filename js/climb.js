@@ -30,6 +30,7 @@ const RUN_RESORTE = 0.08; // carrera: +salto base por nivel de "piernas de resor
 // fracción de la racha de perfectos (por nivel; nv0 = reset total de siempre).
 const RACHA_DIVINA_KEEP = [0, 0.3, 0.5, 0.7, 0.8];
 const RUN_VENTIL = 0.05; // carrera "Ventil Forte": ensancha la zona dulce en ráfaga por nivel (nunca más que la base)
+const RUN_VENTIL_PERFECT = 0.012; // mismo upgrade, pero para la micro-zona perfecta (máx nivel: PERFECT_WIND llega a PERFECT_W)
 // El próximo salto nunca exige menos del 50% de la carga: un nudo más cerca
 // que esto se saltea (nada de perder la racha por un tronco mal posicionado).
 const MIN_TARGET_GAP = MAX_JUMP * 0.5;
@@ -200,9 +201,14 @@ export const climb = {
     return (wind.windy() ? windW : SWEET_BASE) * zoneAt(state.height).sweetMul * this.mods.sweetMul();
   },
   // la micro-zona perfecta se angosta todavía más con ráfaga (el "abrigo de
-  // brisa" solo protege la zona dulce general, no la de precisión)
+  // brisa" solo protege la zona dulce general, no la de precisión); carrera
+  // "Ventil Forte" sí protege también la de precisión, mismo trato que sweetW
   perfectW() {
-    return wind.windy() ? PERFECT_WIND : PERFECT_W;
+    let windW = PERFECT_WIND;
+    if (state.mode === 'carrera') {
+      windW = Math.min(PERFECT_W, windW + RUN_VENTIL_PERFECT * state.carrera.upgrades.ventil);
+    }
+    return wind.windy() ? windW : PERFECT_W;
   },
   landingH() {
     return state.height + this.power * MAX_JUMP;
