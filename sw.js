@@ -4,7 +4,7 @@
 // cache-first y una recarga nunca traía la actualización — pasaba en Brave iOS).
 // Las fuentes, íconos e imágenes (pesados e inmutables) siguen cache-first.
 // REGLA: cualquier cambio en un asset requiere bumpear CACHE (rucacuero-vN).
-const CACHE = 'rucacuero-v24';
+const CACHE = 'rucacuero-v25';
 const ASSETS = [
   './',
   'index.html',

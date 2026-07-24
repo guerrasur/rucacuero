@@ -89,8 +89,9 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   piso 1%), `tick(dt, sapMul, genAnts)` (negras solo en zen; savia siempre),
   `buy()`.
 - `carrera.js` — modo carrera: `R_UPGRADES` (8, en coloradas: resorte/reloj/eco/
-  botin + `primosalto` (envión de partida gratis, +metros que se duplican por
-  nivel, respeta pisos vía `primosaltoMetros()` aplicado en `run.onPress()`),
+  botin + `primosalto` (envión de partida gratis, +metros por nivel vía tabla
+  fija `PRIMOSALTO_METROS` — 20/50/100 y de ahí se duplica —, respeta pisos
+  vía `primosaltoMetros()` aplicado en `run.onPress()`),
   `rachadivina` (al fallar, la racha se recorta en vez de resetear — climb la
   lee), `zancada` (piso extra de metros en un agarre común — climb la lee) y
   `ventil` "Ventil Forte" (la ráfaga angosta menos la zona dulce, sin pasar la

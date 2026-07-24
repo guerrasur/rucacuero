@@ -50,7 +50,7 @@ export const R_UPGRADES = [
   {
     id: 'primosalto',
     name: 'Primosalto',
-    desc: 'Un envión de partida antes del primer toque: arrancás cada carrera más arriba (+metros, se duplican por nivel).',
+    desc: 'Un envión de partida antes del primer toque: arrancás cada carrera más arriba (20, 50, 100 m… se duplica de ahí en adelante).',
     baseCost: 100,
     growth: 2.2,
     max: 8,
@@ -81,10 +81,13 @@ export const R_UPGRADES = [
   },
 ];
 
-// Metros del envión de partida ("Primosalto"): 100, 200, 400… (se duplican).
+// Metros del envión de partida ("Primosalto"): progresión fija por nivel
+// (20, 50, 100…) que después se duplica, para que los primeros niveles no
+// regalen de entrada un salto gigante.
+const PRIMOSALTO_METROS = [20, 50, 100, 200, 400, 800, 1600, 3200];
 export function primosaltoMetros() {
   const lvl = state.carrera.upgrades.primosalto;
-  return lvl > 0 ? 100 * Math.pow(2, lvl - 1) : 0;
+  return lvl > 0 ? PRIMOSALTO_METROS[Math.min(lvl, PRIMOSALTO_METROS.length) - 1] : 0;
 }
 
 export function timeTotal() {
