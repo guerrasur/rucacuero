@@ -138,7 +138,11 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   con `breakStreak(hard)`: `hard` resetea entero (cambio de modo / fin de
   carrera), sin `hard` en carrera la mejora `rachadivina` conserva una fracción
   (`RACHA_DIVINA_KEEP`). La mejora `zancada` suma `RUN_ZANCADA·nivel` metros a un
-  agarre común (no perfecto). `MIN_TARGET_GAP = MAX_JUMP*0.5` (3 m):
+  agarre común (no perfecto); ese piso extra se anima con una fase corta propia
+  (`settling`, `SETTLE_TIME`) en vez de aplicarse de golpe — sumarlo directo a
+  `state.height` en fase `idle` hacía que `visualHeight()` (sin interpolación
+  en `idle`) teletransportara al escalador unos metros para arriba apenas
+  soltaba un agarre común (bug corregido). `MIN_TARGET_GAP = MAX_JUMP*0.5` (3 m):
   si el próximo nudo exige menos del 50% de la carga, `press()` apunta directo
   al siguiente cuando entra en el salto máximo (`MAX_JUMP + 0.1`) — nunca un
   objetivo sin tiempo de reacción ni rachas perdidas por un tronco mal
