@@ -53,6 +53,31 @@ export function timeTotal() {
   return RELOJ_TIEMPOS[Math.min(state.carrera.upgrades.reloj, RELOJ_TIEMPOS.length - 1)];
 }
 
+// Pisos: checkpoints de altura fijos en la carrera. Al cruzar uno por primera
+// vez queda desbloqueado para siempre (se persiste); la caída al agotarse el
+// tiempo para en el más alto desbloqueado en vez de ir a la tierra.
+export const PISOS = [500, 10000, 100000];
+
+export function pisoFloor() {
+  let floor = 0;
+  for (let i = 0; i < PISOS.length; i++) {
+    if (state.carrera.pisos[i]) floor = PISOS[i];
+  }
+  return floor;
+}
+
+function checkPisos(h) {
+  let unlocked = false;
+  for (let i = 0; i < PISOS.length; i++) {
+    if (!state.carrera.pisos[i] && h >= PISOS[i]) {
+      state.carrera.pisos[i] = true;
+      unlocked = true;
+      run.emit('piso', { piso: PISOS[i], index: i });
+    }
+  }
+  if (unlocked) save();
+}
+
 export function upgradeCost(def) {
   return Math.ceil(def.baseCost * Math.pow(def.growth, state.carrera.upgrades[def.id]));
 }
@@ -129,6 +154,7 @@ export const run = {
     }
     if (!this.active) return;
     this.peak = Math.max(this.peak, state.height);
+    checkPisos(state.height);
     if (!this.falling) {
       // el reloj recién corre una vez agarrada la primera rama
       if (this.started) this.left = Math.max(0, this.left - dt);
@@ -142,8 +168,11 @@ export const run = {
         if (climb.phase === 'idle') {
           this.falling = true;
           climb.breakStreak();
-          const dur = Math.max(1, Math.min(2.5, 0.8 + state.height * 0.01));
-          climb.startSlip(state.height, 0, dur); // cae a la tierra
+          // sin pisos desbloqueados cae a la tierra; con pisos, para en el
+          // checkpoint más alto (nunca vuelve a foja cero de nuevo)
+          const floor = pisoFloor();
+          const dur = Math.max(1, Math.min(2.5, 0.8 + (state.height - floor) * 0.01));
+          climb.startSlip(state.height, floor, dur);
           this.emit('run-fall');
         }
       }
