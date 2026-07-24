@@ -4,7 +4,7 @@ import { state, menosMovimiento } from './state.js';
 import { climb, wind, knotHeight, knotHasSap, knotIndexAbove, hash, MAX_JUMP, PERFECT_W, ZONES } from './climb.js';
 import { branchEvents } from './events.js';
 import { skinHex } from './cosmetics.js';
-import { run } from './carrera.js';
+import { run, PISOS } from './carrera.js';
 
 const C = {
   noche: '#131B12',
@@ -26,6 +26,7 @@ const CHAR_Y = 0.7; // fracción de pantalla donde vive el personaje
 const DASH_STRIA = [26, 21];
 const DASH_RING = [6, 7];
 const DASH_RECORD = [9, 8];
+const DASH_PISO = [16, 11];
 const DASH_NONE = [];
 
 function hexLerp(a, b, t) {
@@ -207,6 +208,7 @@ export class Scene {
     this.drawBranch();
     this.drawMilestones();
     this.drawRecordLine();
+    this.drawPisos();
     this.drawAnts(view.antRate);
     this.drawGround();
     this.drawChargeOverlays();
@@ -471,6 +473,29 @@ export class Scene {
     ctx.globalAlpha = 1;
   }
 
+  // ---------- pisos: checkpoints de altura de la carrera ----------
+  // línea entrecortada hueso que cruza todo el ancho de la pantalla; versión
+  // simple (después va a ser una nube con más arte propio).
+  drawPisos() {
+    if (state.mode !== 'carrera') return;
+    const { ctx } = this;
+    ctx.strokeStyle = C.hueso;
+    ctx.lineWidth = 3;
+    ctx.setLineDash(DASH_PISO);
+    for (let i = 0; i < PISOS.length; i++) {
+      const p = PISOS[i];
+      const y = this.yOf(p);
+      if (y < -20 || y > this.H + 20) continue;
+      ctx.globalAlpha = state.carrera.pisos[i] ? 0.75 : 0.4;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(this.W, y);
+      ctx.stroke();
+    }
+    ctx.setLineDash(DASH_NONE);
+    ctx.globalAlpha = 1;
+  }
+
   // ---------- la tierra: el piso curvo del que sale el tallo ----------
   drawGround() {
     const { ctx } = this;
@@ -674,7 +699,9 @@ export class Scene {
     const a = climb.chargeAlpha;
     if (a < 0.02) return;
     const kh = knotHeight(climb.targetKnot);
-    const w = climb.sweetW();
+    // anchos "mostrados": lerp corto entre calma y ráfaga, no un corte de golpe
+    const w = climb.sweetWShown;
+    const pw = climb.perfectWShown;
     const bx = this.branchX(kh);
 
     // banda de zona dulce sobre la rama
@@ -686,8 +713,8 @@ export class Scene {
     // micro-zona perfecta: siempre visible y distinta — soltar ahí nunca
     // falla y sostiene la racha. Late con un pulso y bordes de hueso.
     const pulse = 0.7 + 0.3 * Math.sin(this.t * 6);
-    const py1 = this.yOf(kh + PERFECT_W);
-    const py2 = this.yOf(kh - PERFECT_W);
+    const py1 = this.yOf(kh + pw);
+    const py2 = this.yOf(kh - pw);
     const gs = 54 + 10 * pulse;
     ctx.globalAlpha = 0.75 * a * pulse;
     ctx.drawImage(this.glowSprite, bx - gs / 2, this.yOf(kh) - gs / 2, gs, gs);
@@ -753,8 +780,8 @@ export class Scene {
 
     // distintivo del perfecto en el medidor: la micro-zona en savia con
     // bordes hueso, encima del relleno — se ve dónde está sin mirar la rama
-    const qLo = Math.max(0, Math.min(1, (gap - PERFECT_W) / MAX_JUMP));
-    const qHi = Math.max(0, Math.min(1, (gap + PERFECT_W) / MAX_JUMP));
+    const qLo = Math.max(0, Math.min(1, (gap - pw) / MAX_JUMP));
+    const qHi = Math.max(0, Math.min(1, (gap + pw) / MAX_JUMP));
     if (qHi > qLo) {
       const yHi = mtTop + mtH * (1 - qHi);
       const yLo = mtTop + mtH * (1 - qLo);

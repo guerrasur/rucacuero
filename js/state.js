@@ -16,7 +16,10 @@ export const state = {
   zen: { height: 0, best: 0 },
   // modo carrera: hormigas coloradas, récord y mejoras propias. Cada run
   // arranca siempre desde la tierra.
-  carrera: { ants: 0, best: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0 } },
+  // pisos: checkpoints de altura (500/10.000/100.000 m, ver carrera.PISOS)
+  // desbloqueados una sola vez; la caída al agotarse el tiempo para en el
+  // más alto desbloqueado en vez de ir a la tierra.
+  carrera: { ants: 0, best: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0 }, pisos: [false, false, false] },
   upgrades: { feromonas: 0, reina: 0, nudos: 0, mielada: 0, ofrenda: 0 },
   unlocks: [],
   quest: null, // misión activa: { id, target, progress }
@@ -78,6 +81,7 @@ export function load() {
   for (const k of Object.keys(state.carrera.upgrades)) {
     state.carrera.upgrades[k] = Math.floor(num(cup[k]));
   }
+  state.carrera.pisos = state.carrera.pisos.map((_, i) => !!(Array.isArray(ca.pisos) && ca.pisos[i]));
   // la altura activa según el modo: la carrera siempre arranca desde la tierra
   if (state.mode === 'zen') {
     state.height = state.zen.height;

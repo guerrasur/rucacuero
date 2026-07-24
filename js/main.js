@@ -219,11 +219,20 @@ function frame(now) {
       case 'run-start':
         ui.showBanner('¡A trepar!', `${ev.total.toLocaleString('es-AR', { maximumFractionDigits: 1 })} s para subir lo más alto posible`);
         break;
-      case 'run-fall':
-        ui.showBanner('¡Se acabó el tiempo!', 'de vuelta a la tierra');
+      case 'run-fall': {
+        const floor = carrera.pisoFloor();
+        ui.showBanner(
+          '¡Se acabó el tiempo!',
+          floor > 0 ? `de vuelta al piso de los ${floor.toLocaleString('es-AR')} m` : 'de vuelta a la tierra',
+        );
         audio.slip();
         scene.burst('dust');
         scene.addShake(1.2);
+        break;
+      }
+      case 'piso':
+        ui.showBanner('¡Piso desbloqueado!', `checkpoint a los ${ev.piso.toLocaleString('es-AR')} m`);
+        audio.zoneFanfare();
         break;
       case 'run-end': {
         const m = ev.peak.toLocaleString('es-AR', { maximumFractionDigits: 1 });

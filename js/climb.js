@@ -10,6 +10,8 @@ export const PERFECT_W = 0.14; // metros: micro-zona de soltada perfecta
 
 const SWEET_BASE = 0.55; // semiancho de la zona dulce en metros
 const SWEET_WIND = 0.3; // semiancho durante ráfaga
+const PERFECT_WIND = 0.08; // metros: la micro-zona perfecta se angosta más todavía con ráfaga
+const WIND_TRANS = 0.28; // segundos: transición suave del ancho de zona al cambiar el viento
 const LOSS_SHORT = 1.2;
 const LOSS_OVER = 3.0;
 const LOSS_LUCK = 2.2;
@@ -140,6 +142,10 @@ export const climb = {
   streakMult: 1,
   jumpsSinceResin: RESIN_EVERY,
   chargeAlpha: 0, // para desvanecer overlays de carga en el render
+  // anchos "mostrados" de las zonas: siguen a sweetW()/perfectW() con un
+  // lerp corto en vez de saltar de golpe cuando cambia el viento
+  sweetWShown: SWEET_BASE,
+  perfectWShown: PERFECT_W,
   lastZone: null,
   // modificadores externos (lluvia, etc.) inyectados por main
   mods: { slipBonus: () => 0, sweetMul: () => 1 },
@@ -170,6 +176,11 @@ export const climb = {
     // "abrigo de brisa": la ráfaga angosta menos la zona dulce
     const windW = state.unlocks.includes('brisa') ? 0.38 : SWEET_WIND;
     return (wind.windy() ? windW : SWEET_BASE) * zoneAt(state.height).sweetMul * this.mods.sweetMul();
+  },
+  // la micro-zona perfecta se angosta todavía más con ráfaga (el "abrigo de
+  // brisa" solo protege la zona dulce general, no la de precisión)
+  perfectW() {
+    return wind.windy() ? PERFECT_WIND : PERFECT_W;
   },
   landingH() {
     return state.height + this.power * MAX_JUMP;
@@ -208,7 +219,7 @@ export const climb = {
     } else {
       this.result = 'grab';
       this.leapTo = kH;
-      this.perfect = Math.abs(land - kH) <= PERFECT_W;
+      this.perfect = Math.abs(land - kH) <= this.perfectW();
       // racha de perfectos. El perfecto es infalible, así que se resuelve acá
       // y el vuelo anima suave hasta la altura final.
       if (this.perfect) {
@@ -314,6 +325,8 @@ export const climb = {
     this.breakStreak();
     this.lastZone = null;
     this.chargeAlpha = 0;
+    this.sweetWShown = this.sweetW();
+    this.perfectWShown = this.perfectW();
     this.targetKnot = nextKnotIndex(state.height);
   },
 
@@ -335,6 +348,11 @@ export const climb = {
     }
     const target = this.phase === 'charging' ? 1 : 0;
     this.chargeAlpha += (target - this.chargeAlpha) * Math.min(1, dt * 8);
+    // los anchos de zona interpolan suave hacia su valor real (no saltan de
+    // golpe cuando entra o sale la ráfaga)
+    const wLerp = Math.min(1, dt / WIND_TRANS);
+    this.sweetWShown += (this.sweetW() - this.sweetWShown) * wLerp;
+    this.perfectWShown += (this.perfectW() - this.perfectWShown) * wLerp;
   },
 
   // Altura para el render (interpola durante salto y resbalón).
