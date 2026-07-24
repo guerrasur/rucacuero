@@ -11,7 +11,11 @@ export const PERFECT_W = 0.14; // metros: micro-zona de soltada perfecta
 const SWEET_BASE = 0.55; // semiancho de la zona dulce en metros
 const SWEET_WIND = 0.3; // semiancho durante ráfaga
 const PERFECT_WIND = 0.08; // metros: la micro-zona perfecta se angosta más todavía con ráfaga
-const WIND_TRANS = 0.1; // segundos: transición del ancho de zona al cambiar el viento (rápida: que se note apenas se va la ráfaga)
+// segundos: transición del ancho de zona al cambiar el viento. Entrar a una
+// ráfaga se siente un toque (avisa el angostamiento); salir es casi
+// instantáneo — apenas se va el viento, la zona dulce ya se ve normal.
+const WIND_TRANS_IN = 0.1;
+const WIND_TRANS_OUT = 0.03;
 const LOSS_SHORT = 1.2;
 const LOSS_OVER = 3.0;
 const LOSS_LUCK = 2.2;
@@ -401,7 +405,8 @@ export const climb = {
     this.chargeAlpha += (target - this.chargeAlpha) * Math.min(1, dt * 8);
     // los anchos de zona interpolan suave hacia su valor real (no saltan de
     // golpe cuando entra o sale la ráfaga)
-    const wLerp = Math.min(1, dt / WIND_TRANS);
+    const trans = wind.windy() ? WIND_TRANS_IN : WIND_TRANS_OUT;
+    const wLerp = Math.min(1, dt / trans);
     this.sweetWShown += (this.sweetW() - this.sweetWShown) * wLerp;
     this.perfectWShown += (this.perfectW() - this.perfectWShown) * wLerp;
   },

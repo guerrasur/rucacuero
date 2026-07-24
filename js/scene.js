@@ -186,14 +186,22 @@ export class Scene {
     const { ctx } = this;
     this.t += dt;
     const h = climb.visualHeight();
-    this.cameraH += (h - this.cameraH) * Math.min(1, dt * 4.5);
     this.shake = Math.max(0, this.shake - dt * 2.4);
 
     // la escala es SIEMPRE fija (nada de zoom: estiraba el árbol y movía el
     // objetivo); en los vuelos gigantes la cámara persigue al escalador y,
-    // si el viaje es más rápido que el lerp, se engancha para no perderlo
-    if (h - this.cameraH > 2.5) this.cameraH = h - 2.5;
-    else if (this.cameraH - h > 2.5) this.cameraH = h + 2.5;
+    // si el viaje es más rápido que el lerp, se engancha para no perderlo.
+    // Un cambio de altura SIN salto/resbalón en curso (cambio de modo,
+    // rebirth) no es algo que la cámara deba "perseguir": no hay nada
+    // animándose de por medio, así que corta directo en vez de arrastrar
+    // un resto de paneo sobre un salto que nunca existió.
+    if (climb.phase === 'idle' && Math.abs(h - this.cameraH) > 2.5) {
+      this.cameraH = h;
+    } else {
+      this.cameraH += (h - this.cameraH) * Math.min(1, dt * 4.5);
+      if (h - this.cameraH > 2.5) this.cameraH = h - 2.5;
+      else if (this.cameraH - h > 2.5) this.cameraH = h + 2.5;
+    }
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     // fondo: la noche del monte, pareja en toda la subida
