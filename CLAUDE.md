@@ -73,7 +73,7 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
 - `state.js` — objeto `state` + load/save/autosave. Schema del save:
   `{ v:1, mode:'carrera'|'zen', ants, sap, height, bestHeight,
   zen:{height,best},
-  carrera:{ants,best,upgrades:{resorte,reloj,eco,botin,primosalto,rachadivina,zancada,ventil},pisos:[bool]},
+  carrera:{ants,best,upgrades:{resorte,reloj,eco,botin,primosalto,rachadivina,ventil},pisos:[bool]},
   upgrades:{feromonas,reina,nudos,mielada,ofrenda}, unlocks:[ids],
   quest:{id,target,progress}|null, questsDone,
   life:{metros,perfectos,chucaos,lluvias,gastadas,enjambres}, logros:[ids],
@@ -88,14 +88,13 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   hormigas), `slipChance(windy)` (8% base ×0.82^nudos,
   piso 1%), `tick(dt, sapMul, genAnts)` (negras solo en zen; savia siempre),
   `buy()`.
-- `carrera.js` — modo carrera: `R_UPGRADES` (8, en coloradas: resorte/reloj/eco/
+- `carrera.js` — modo carrera: `R_UPGRADES` (7, en coloradas: resorte/reloj/eco/
   botin + `primosalto` (envión de partida gratis, +metros por nivel vía tabla
   fija `PRIMOSALTO_METROS` — 20/50/100 y de ahí se duplica —, respeta pisos
   vía `primosaltoMetros()` aplicado en `run.onPress()`),
   `rachadivina` (al fallar, la racha se recorta en vez de resetear — climb la
-  lee), `zancada` (piso extra de metros en un agarre común — climb la lee) y
-  `ventil` "Ventil Forte" (la ráfaga angosta menos la zona dulce, sin pasar la
-  base — climb la lee en `sweetW()`)), `timeTotal()`
+  lee) y `ventil` "Ventil Forte" (la ráfaga angosta menos la zona dulce, sin
+  pasar la base — climb la lee en `sweetW()`)), `timeTotal()`
   (tabla `RELOJ_TIEMPOS`, 5→7→…→90 s),
   objeto `run` (active/started/left/peak/falling; `onPress()` ARMA la carrera
   con el reloj EN PAUSA, `onGrab()` — main lo llama al primer agarre/perfecto —
@@ -137,12 +136,7 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   como "perfecto" con solo mantener presionado (bug corregido). La racha se corta
   con `breakStreak(hard)`: `hard` resetea entero (cambio de modo / fin de
   carrera), sin `hard` en carrera la mejora `rachadivina` conserva una fracción
-  (`RACHA_DIVINA_KEEP`). La mejora `zancada` suma `RUN_ZANCADA·nivel` metros a un
-  agarre común (no perfecto); ese piso extra se anima con una fase corta propia
-  (`settling`, `SETTLE_TIME`) en vez de aplicarse de golpe — sumarlo directo a
-  `state.height` en fase `idle` hacía que `visualHeight()` (sin interpolación
-  en `idle`) teletransportara al escalador unos metros para arriba apenas
-  soltaba un agarre común (bug corregido). `MIN_TARGET_GAP = MAX_JUMP*0.5` (3 m):
+  (`RACHA_DIVINA_KEEP`). `MIN_TARGET_GAP = MAX_JUMP*0.5` (3 m):
   si el próximo nudo exige menos del 50% de la carga, `press()` apunta directo
   al siguiente cuando entra en el salto máximo (`MAX_JUMP + 0.1`) — nunca un
   objetivo sin tiempo de reacción ni rachas perdidas por un tronco mal

@@ -60,9 +60,6 @@ export const ICONOS = {
   rachadivina: svg(
     '<path d="M12 3 14 9l6 .3-4.7 3.9L17 19l-5-3.4L7 19l1.7-5.8L4 9.3 10 9z" fill="currentColor"/>'
   ),
-  zancada: svg(
-    '<path d="M9 3.5v9M9 12.5l-3.5 4.5M9 12.5l3.5 4.5"/><path d="M15.5 6.5v8M15.5 14.5 12 19M15.5 14.5 19 19"/>'
-  ),
   ventil: svg(
     '<circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><path d="M12 10.2c-1.2-2.5-1-5 .8-6.2 1.5 1 2 3 1 5.2M13.8 12c2.5-1.2 5-1 6.2.8-1 1.5-3 2-5.2 1M12 13.8c1.2 2.5 1 5-.8 6.2-1.5-1-2-3-1-5.2M10.2 12c-2.5 1.2-5 1-6.2-.8 1-1.5 3-2 5.2-1"/>'
   ),

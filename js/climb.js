@@ -17,7 +17,6 @@ const LOSS_OVER = 3.0;
 const LOSS_LUCK = 2.2;
 const LEAP_TIME = 0.5;
 const SLIP_TIME = 0.7;
-const SETTLE_TIME = 0.25; // asentamiento visual del piso de "Zancada de Roble"
 // Racha de perfectos (ambos modos): cada perfecto encadenado multiplica los
 // metros ganados, exponencial y sin tope. Cualquier soltada no perfecta la corta.
 const STREAK_BASE = 1.25;
@@ -26,7 +25,6 @@ const RUN_RESORTE = 0.08; // carrera: +salto base por nivel de "piernas de resor
 // carrera "Racha Divina": al fallar, en vez de reset total, se conserva esta
 // fracción de la racha de perfectos (por nivel; nv0 = reset total de siempre).
 const RACHA_DIVINA_KEEP = [0, 0.3, 0.5, 0.7, 0.8];
-const RUN_ZANCADA = 0.6; // carrera "Zancada de Roble": +metros de piso por nivel en un agarre común
 const RUN_VENTIL = 0.05; // carrera "Ventil Forte": ensancha la zona dulce en ráfaga por nivel (nunca más que la base)
 // El próximo salto nunca exige menos del 50% de la carga: un nudo más cerca
 // que esto se saltea (nada de perder la racha por un tronco mal posicionado).
@@ -142,14 +140,12 @@ function easeInOut(t) {
 
 // ---------- máquina de estados del salto ----------
 export const climb = {
-  phase: 'idle', // idle | charging | leaping | slipping | settling
+  phase: 'idle', // idle | charging | leaping | slipping
   power: 0,
   t: 0,
   targetKnot: 1,
   jumpStart: 0,
   leapDur: LEAP_TIME,
-  settleFrom: 0,
-  settleTo: 0,
   leapTo: 0,
   slipFrom: 0,
   slipTo: 0,
@@ -304,14 +300,8 @@ export const climb = {
         return;
       }
     }
-    // "Zancada de Roble" (carrera): un agarre común (no perfecto ni encadenado)
-    // suma un piso extra de metros sobre el nudo — hasta un salto mediocre rinde.
-    const zancada =
-      !this.perfect && !this.chainSafe && state.mode === 'carrera'
-        ? RUN_ZANCADA * state.carrera.upgrades.zancada
-        : 0;
-    const gained = this.leapTo + zancada - state.height;
-    state.height = this.leapTo + zancada;
+    const gained = this.leapTo - state.height;
+    state.height = this.leapTo;
     if (state.height > state.bestHeight) state.bestHeight = state.height;
     const z = zoneAt(state.height);
     if (this.lastZone && z !== this.lastZone) this.emit('zone', { zone: z });
@@ -335,23 +325,10 @@ export const climb = {
     }
     if (this.perfect) {
       this.emit('perfect', { gain: gained, mult: this.streakMult, streak: this.perfectStreak });
-      this.phase = 'idle';
     } else {
       this.emit('grab', { gain: gained });
-      // "Zancada de Roble" suma metros arriba del nudo donde ya aterrizó la
-      // animación de salto: si acá se pisaba directo a state.height (que ya
-      // incluye el piso extra), visualHeight() saltaba de golpe unos metros
-      // apenas se soltaba (fase 'idle' = sin interpolación). Se anima un
-      // asentamiento corto en vez de teletransportar al escalador.
-      if (zancada > 0) {
-        this.settleFrom = this.leapTo;
-        this.settleTo = state.height;
-        this.t = 0;
-        this.phase = 'settling';
-      } else {
-        this.phase = 'idle';
-      }
     }
+    this.phase = 'idle';
   },
 
   startSlip(from, to, dur = SLIP_TIME) {
@@ -382,8 +359,8 @@ export const climb = {
     this.chainSafe = false;
     // si esto se llama a mitad del envión de Primosalto (cambio de modo,
     // rebirth) la bandera quedaba pegada: el siguiente salto normal saltaba
-    // arrive() entero (sin tirada de mala suerte/zancada) y aterrizaba de
-    // golpe unos metros más arriba de lo que tocaba.
+    // arrive() entero (sin tirada de mala suerte) y aterrizaba de golpe unos
+    // metros más arriba de lo que tocaba.
     this.bonusLeap = false;
     this.breakStreak(true);
     this.lastZone = null;
@@ -419,9 +396,6 @@ export const climb = {
         this.lastZone = zoneAt(state.height);
         this.phase = 'idle';
       }
-    } else if (this.phase === 'settling') {
-      this.t += dt / SETTLE_TIME;
-      if (this.t >= 1) this.phase = 'idle';
     }
     const target = this.phase === 'charging' ? 1 : 0;
     this.chargeAlpha += (target - this.chargeAlpha) * Math.min(1, dt * 8);
@@ -441,10 +415,6 @@ export const climb = {
     if (this.phase === 'slipping') {
       const t = Math.min(1, this.t);
       return this.slipFrom + (this.slipTo - this.slipFrom) * easeInOut(t);
-    }
-    if (this.phase === 'settling') {
-      const t = Math.min(1, this.t);
-      return this.settleFrom + (this.settleTo - this.settleFrom) * easeOutCubic(t);
     }
     return state.height;
   },

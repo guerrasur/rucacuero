@@ -19,7 +19,7 @@ export const state = {
   // pisos: checkpoints de altura (500/10.000/100.000 m, ver carrera.PISOS)
   // desbloqueados una sola vez; la caída al agotarse el tiempo para en el
   // más alto desbloqueado en vez de ir a la tierra.
-  carrera: { ants: 0, best: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0, primosalto: 0, rachadivina: 0, zancada: 0, ventil: 0 }, pisos: [false, false, false] },
+  carrera: { ants: 0, best: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0, primosalto: 0, rachadivina: 0, ventil: 0 }, pisos: [false, false, false] },
   upgrades: { feromonas: 0, reina: 0, nudos: 0, mielada: 0, ofrenda: 0 },
   unlocks: [],
   quest: null, // misión activa: { id, target, progress }
