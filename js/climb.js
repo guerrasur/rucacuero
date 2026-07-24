@@ -22,9 +22,19 @@ const SLIP_TIME = 0.7;
 const STREAK_BASE = 1.25;
 const RUN_STREAK_ECO = 0.03; // carrera: extra por nivel de "eco del perfecto"
 const RUN_RESORTE = 0.08; // carrera: +salto base por nivel de "piernas de resorte"
+// carrera "Racha Divina": al fallar, en vez de reset total, se conserva esta
+// fracción de la racha de perfectos (por nivel; nv0 = reset total de siempre).
+const RACHA_DIVINA_KEEP = [0, 0.3, 0.5, 0.7, 0.8];
+const RUN_ZANCADA = 0.6; // carrera "Zancada de Roble": +metros de piso por nivel en un agarre común
 // El próximo salto nunca exige menos del 50% de la carga: un nudo más cerca
 // que esto se saltea (nada de perder la racha por un tronco mal posicionado).
 const MIN_TARGET_GAP = MAX_JUMP * 0.5;
+// Ni tan lejos que a carga máxima no quede aire para pasarse: si la zona dulce
+// del próximo nudo llegara al tope del salto, mantener presionado sin soltar lo
+// resolvería SIEMPRE como perfecto (no hay borde para excederse). Dejamos al
+// menos un semiancho de zona dulce de margen por encima del agarre — así el
+// nudo nunca queda pegado al límite alcanzable de la pantalla.
+const MAX_KNOT_GAP = MAX_JUMP - 2 * SWEET_BASE; // 4.9 m
 const RESIN_EVERY = 5; // saltos entre salvadas de resina
 
 function frac(x) {
@@ -58,7 +68,10 @@ export function knotHeight(i) {
   while (knots.length <= i) {
     const k = knots.length;
     const z = zoneAt(knots[k - 1]);
-    knots.push(knots[k - 1] + (2.2 + hash(k) * 2.3) * z.gapMul);
+    // el hueco entre nudos se topea para que siempre haya margen a los dos lados
+    // de la zona de agarre (ver MAX_KNOT_GAP): nunca un nudo pegado al borde
+    const gap = Math.min(MAX_KNOT_GAP, (2.2 + hash(k) * 2.3) * z.gapMul);
+    knots.push(knots[k - 1] + gap);
   }
   return knots[i];
 }
@@ -244,9 +257,14 @@ export const climb = {
     this.phase = 'leaping';
   },
 
-  breakStreak() {
-    this.perfectStreak = 0;
-    this.streakMult = 1;
+  // Corta la racha de perfectos. Con "Racha Divina" (carrera) un fallo de
+  // habilidad/mala suerte solo la RECORTA (conserva una fracción); `hard` fuerza
+  // el reset total (cambio de modo, fin de carrera, arranque de una run nueva).
+  breakStreak(hard = false) {
+    const keep =
+      !hard && state.mode === 'carrera' ? RACHA_DIVINA_KEEP[state.carrera.upgrades.rachadivina] || 0 : 0;
+    this.perfectStreak = keep > 0 ? Math.floor(this.perfectStreak * keep) : 0;
+    this.streakMult = Math.pow(this.streakBase(), this.perfectStreak);
   },
 
   arrive() {
@@ -277,8 +295,14 @@ export const climb = {
         return;
       }
     }
-    const gained = this.leapTo - state.height;
-    state.height = this.leapTo;
+    // "Zancada de Roble" (carrera): un agarre común (no perfecto ni encadenado)
+    // suma un piso extra de metros sobre el nudo — hasta un salto mediocre rinde.
+    const zancada =
+      !this.perfect && !this.chainSafe && state.mode === 'carrera'
+        ? RUN_ZANCADA * state.carrera.upgrades.zancada
+        : 0;
+    const gained = this.leapTo + zancada - state.height;
+    state.height = this.leapTo + zancada;
     if (state.height > state.bestHeight) state.bestHeight = state.height;
     const z = zoneAt(state.height);
     if (this.lastZone && z !== this.lastZone) this.emit('zone', { zone: z });
@@ -322,7 +346,7 @@ export const climb = {
     this.power = 0;
     this.t = 0;
     this.chainSafe = false;
-    this.breakStreak();
+    this.breakStreak(true);
     this.lastZone = null;
     this.chargeAlpha = 0;
     this.sweetWShown = this.sweetW();

@@ -1,5 +1,5 @@
 // HUD, tienda (hormiguero), ropero, toasts de savia y feedback flotante.
-import { state, save, menosMovimiento } from './state.js';
+import { state, save, menosMovimiento, altNum, altUnidad, fmtAltura } from './state.js';
 import {
   UPGRADES,
   SAP_UNLOCKS,
@@ -44,12 +44,11 @@ const roperoCache = {}; // último estado escrito por carta de cosmético
 const shopCache = {}; // chips de moneda de la tienda
 
 const fmtInt = n => Math.floor(n).toLocaleString('es-AR');
-const fmtH = h =>
-  h.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 export function init() {
   els = {
     heightN: $('height-n'),
+    heightUnit: $('height-unit'),
     mult: $('mult'),
     record: $('record'),
     timer: $('timer'),
@@ -675,7 +674,7 @@ function hideMult() {
 
 export function onClimbEvent(ev) {
   if (ev.type === 'grab') {
-    flash(`+${fmtH(ev.gain)} m`, 'good');
+    flash(`+${fmtAltura(ev.gain, 1)}`, 'good');
     hideMult(); // agarre limpio pero no perfecto: la racha se corta
   } else if (ev.type === 'perfect') {
     flash(ev.mult > 1 ? `¡Perfecto! ×${ev.mult.toLocaleString('es-AR', { minimumFractionDigits: 1 })}` : '¡Perfecto!', 'good');
@@ -688,7 +687,7 @@ export function onClimbEvent(ev) {
 }
 
 // cache de lo último escrito: tocar el DOM solo cuando el texto cambia
-const hud = { h: '', rec: '', ants: '', sap: '', bar: -1, quest: '', charging: false, timer: '' };
+const hud = { h: '', hUnit: '', rec: '', ants: '', sap: '', bar: -1, quest: '', charging: false, timer: '' };
 
 export function update() {
   // durante la carga, la UI se atenúa (clase en body, solo cuando cambia)
@@ -697,12 +696,19 @@ export function update() {
     hud.charging = charging;
     document.body.classList.toggle('charging', charging);
   }
-  const h = fmtH(climb.visualHeight());
+  // el contador principal: metros (1 decimal) hasta 1000, km (2 decimales) arriba
+  const vh = climb.visualHeight();
+  const h = altNum(vh, 1);
   if (h !== hud.h) {
     hud.h = h;
     els.heightN.textContent = h;
   }
-  const rec = `récord ${fmtH(state.bestHeight)} m`;
+  const hUnit = altUnidad(vh);
+  if (hUnit !== hud.hUnit) {
+    hud.hUnit = hUnit;
+    els.heightUnit.textContent = hUnit;
+  }
+  const rec = `récord ${fmtAltura(state.bestHeight, 1)}`;
   if (rec !== hud.rec) {
     hud.rec = rec;
     els.record.textContent = rec;

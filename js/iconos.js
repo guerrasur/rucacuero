@@ -54,6 +54,15 @@ export const ICONOS = {
   botin: svg(
     '<path d="M9.5 7.5 8 4h8l-1.5 3.5"/><path d="M9.5 7.5h5c3 2 4.5 4.5 4.5 7 0 3-2.5 5-7 5s-7-2-7-5c0-2.5 1.5-5 4.5-7z" fill="currentColor"/>'
   ),
+  primosalto: svg(
+    '<path d="M12 3.5 7 9h3v5.5c0 1.5.9 2.5 2 2.5s2-1 2-2.5V9h3z" fill="currentColor"/><path d="M6.5 20.5h11" stroke-dasharray="2.2 2.4"/>'
+  ),
+  rachadivina: svg(
+    '<path d="M12 3 14 9l6 .3-4.7 3.9L17 19l-5-3.4L7 19l1.7-5.8L4 9.3 10 9z" fill="currentColor"/>'
+  ),
+  zancada: svg(
+    '<path d="M9 3.5v9M9 12.5l-3.5 4.5M9 12.5l3.5 4.5"/><path d="M15.5 6.5v8M15.5 14.5 12 19M15.5 14.5 19 19"/>'
+  ),
 
   // ---- avances de savia ----
   resina: svg(

@@ -1,5 +1,5 @@
 // Ruca Cuero — loop principal y wiring de input.
-import { state, load, initAutosave } from './state.js';
+import { state, load, initAutosave, fmtAltura } from './state.js';
 import * as economy from './economy.js';
 import { climb, wind } from './climb.js';
 import { Scene } from './scene.js';
@@ -147,7 +147,7 @@ function frame(now) {
         if (zen) quests.note('slip');
         break;
       case 'zone':
-        ui.showBanner(ev.zone.name, `${ev.zone.at} m`);
+        ui.showBanner(ev.zone.name, fmtAltura(ev.zone.at));
         audio.zoneFanfare();
         break;
     }
@@ -223,7 +223,7 @@ function frame(now) {
         const floor = carrera.pisoFloor();
         ui.showBanner(
           '¡Se acabó el tiempo!',
-          floor > 0 ? `de vuelta al piso de los ${floor.toLocaleString('es-AR')} m` : 'de vuelta a la tierra',
+          floor > 0 ? `de vuelta al piso de los ${fmtAltura(floor)}` : 'de vuelta a la tierra',
         );
         audio.slip();
         scene.burst('dust');
@@ -231,12 +231,12 @@ function frame(now) {
         break;
       }
       case 'piso':
-        ui.showBanner('¡Piso desbloqueado!', `checkpoint a los ${ev.piso.toLocaleString('es-AR')} m`);
+        ui.showBanner('¡Piso desbloqueado!', `checkpoint a los ${fmtAltura(ev.piso)}`);
         audio.zoneFanfare();
         break;
       case 'run-end': {
-        const m = ev.peak.toLocaleString('es-AR', { maximumFractionDigits: 1 });
-        ui.showBanner('Fin de la carrera', `${m} m · +${ev.reward.toLocaleString('es-AR')} coloradas`);
+        const m = fmtAltura(ev.peak, 1);
+        ui.showBanner('Fin de la carrera', `${m} · +${ev.reward.toLocaleString('es-AR')} coloradas`);
         ui.flash(`+${ev.reward.toLocaleString('es-AR')} hormigas coloradas`, 'good');
         audio.questDone();
         break;

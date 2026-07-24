@@ -1,6 +1,6 @@
 // Render canvas de la escena: rama xilográfica, nudos, escalador, hormigas,
 // savia, luciérnagas y el elemento firma — el viento dibujado.
-import { state, menosMovimiento } from './state.js';
+import { state, menosMovimiento, altNum } from './state.js';
 import { climb, wind, knotHeight, knotHasSap, knotIndexAbove, hash, MAX_JUMP, PERFECT_W, ZONES } from './climb.js';
 import { branchEvents } from './events.js';
 import { skinHex } from './cosmetics.js';
@@ -427,7 +427,8 @@ export class Scene {
       const x = this.branchX(m) - this.bw * 0.42;
       ctx.globalAlpha = 0.5;
       ctx.fillStyle = C.hueso;
-      ctx.fillText(String(m), x + 12, y);
+      // arriba de 1000 m las marcas pasan a km (2 decimales, coma es-AR)
+      ctx.fillText(altNum(m), x + 12, y);
       ctx.strokeStyle = C.hueso;
       ctx.lineWidth = 2.5;
       ctx.lineCap = 'round';

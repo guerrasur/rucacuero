@@ -1,7 +1,7 @@
 // Compartir el récord como estampa xilográfica: una tarjeta canvas con el
 // lenguaje visual del juego (noche de monte, rama, escalador, savia).
 // Usa Web Share API si hay (celular) y si no descarga el PNG.
-import { state } from './state.js';
+import { state, fmtAltura } from './state.js';
 import { drawFigure, idlePose } from './scene.js';
 
 const C = {
@@ -140,14 +140,14 @@ function drawEstampa() {
   ctx.stroke();
 
   const best = Math.max(state.zen.best, state.carrera.best, state.bestHeight);
-  const rec = best.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const rec = fmtAltura(best, 1);
   ctx.textAlign = 'center';
   ctx.fillStyle = C.hueso;
   ctx.font = '52px Chango, Georgia, serif';
   ctx.fillText('RUCA CUERO', W / 2, py + 80);
   ctx.fillStyle = C.savia;
   ctx.font = '110px Chango, Georgia, serif';
-  ctx.fillText(`${rec} m`, W / 2, py + 200);
+  ctx.fillText(rec, W / 2, py + 200);
   ctx.fillStyle = C.hueso;
   ctx.globalAlpha = 0.8;
   ctx.font = '34px Bricolage Grotesque, system-ui, sans-serif';

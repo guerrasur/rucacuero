@@ -47,7 +47,37 @@ export const R_UPGRADES = [
     growth: 1.9,
     max: 12,
   },
+  {
+    id: 'primosalto',
+    name: 'Primosalto',
+    desc: 'Un envión de partida antes del primer toque: arrancás cada carrera más arriba (+metros, se duplican por nivel).',
+    baseCost: 100,
+    growth: 2.2,
+    max: 8,
+  },
+  {
+    id: 'rachadivina',
+    name: 'Racha Divina',
+    desc: 'Un tropiezo ya no borra la racha de perfectos: conservás parte de lo encadenado.',
+    baseCost: 150,
+    growth: 2.4,
+    max: 4,
+  },
+  {
+    id: 'zancada',
+    name: 'Zancada de Roble',
+    desc: 'Piernas de tronco: hasta un agarre común avanza un piso extra de metros (+0,6 m por nivel).',
+    baseCost: 90,
+    growth: 1.9,
+    max: 10,
+  },
 ];
+
+// Metros del envión de partida ("Primosalto"): 100, 200, 400… (se duplican).
+export function primosaltoMetros() {
+  const lvl = state.carrera.upgrades.primosalto;
+  return lvl > 0 ? 100 * Math.pow(2, lvl - 1) : 0;
+}
 
 export function timeTotal() {
   return RELOJ_TIEMPOS[Math.min(state.carrera.upgrades.reloj, RELOJ_TIEMPOS.length - 1)];
@@ -123,8 +153,18 @@ export const run = {
     this.active = true;
     this.started = false;
     this.left = timeTotal();
-    this.peak = 0;
     this.falling = false;
+    // "Primosalto": envión de partida GRATIS antes del primer input. Sube desde
+    // el piso desbloqueado (respeta los checkpoints) y puede destrabar uno nuevo.
+    const boost = primosaltoMetros();
+    if (boost > 0) {
+      state.height = pisoFloor() + boost;
+      if (state.height > state.bestHeight) state.bestHeight = state.height;
+      checkPisos(state.height);
+      // re-apunta el próximo nudo a la nueva altura (sin heredar zona/racha)
+      climb.resetForMode();
+    }
+    this.peak = state.height;
     this.emit('run-start', { total: this.left });
   },
 
@@ -167,7 +207,7 @@ export const run = {
         }
         if (climb.phase === 'idle') {
           this.falling = true;
-          climb.breakStreak();
+          climb.breakStreak(true); // fin de carrera: la racha se reinicia entera
           // sin pisos desbloqueados cae a la tierra; con pisos, para en el
           // checkpoint más alto (nunca vuelve a foja cero de nuevo)
           const floor = pisoFloor();
