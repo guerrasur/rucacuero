@@ -204,19 +204,22 @@ export class Scene {
     const h = climb.visualHeight();
     this.shake = Math.max(0, this.shake - dt * 2.4);
 
-    // la escala es SIEMPRE fija (nada de zoom: estiraba el árbol y movía el
-    // objetivo); en los vuelos gigantes la cámara persigue al escalador y,
-    // si el viaje es más rápido que el lerp, se engancha para no perderlo.
-    // Un cambio de altura SIN salto/resbalón en curso (cambio de modo,
-    // rebirth) no es algo que la cámara deba "perseguir": no hay nada
-    // animándose de por medio, así que corta directo en vez de arrastrar
-    // un resto de paneo sobre un salto que nunca existió.
-    if (climb.phase === 'idle' && Math.abs(h - this.cameraH) > 2.5) {
+    // La escala es SIEMPRE fija (nada de zoom: estiraba el árbol y movía el
+    // objetivo). La cámara sigue al escalador así:
+    if (climb.phase === 'leaping' || climb.phase === 'slipping') {
+      // durante un salto/resbalón se engancha DIRECTO a la altura visual: el
+      // vuelo ya viene suavizado (easeOutCubic), y al aterrizar la cámara
+      // queda exactamente en el nudo, sin un resto de paneo que siga
+      // arrastrándose medio segundo después — eso hacía "saltar" la corteza
+      // justo al tocar el nudo, ahora que la rama se dibuja rígida.
+      this.cameraH = h;
+    } else if (Math.abs(h - this.cameraH) > 2.5) {
+      // cambio de altura instantáneo SIN animación (cambio de modo, rebirth):
+      // corta directo en vez de arrastrar un paneo sobre un salto que no existió.
       this.cameraH = h;
     } else {
+      // reposo: microajuste suave hacia la altura real (normalmente ya está ahí)
       this.cameraH += (h - this.cameraH) * Math.min(1, dt * 4.5);
-      if (h - this.cameraH > 2.5) this.cameraH = h - 2.5;
-      else if (this.cameraH - h > 2.5) this.cameraH = h + 2.5;
     }
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -302,8 +305,11 @@ export class Scene {
   drawBranch() {
     const { ctx } = this;
     const { top, bot } = this.branchSpan();
-    // el paso escala con el tramo visible para no explotar en puntos
-    const step = Math.max(0.3, (top - bot) / 240);
+    // Paso de muestreo del contorno. Fino (0,12 m ≈ 100 puntos en pantalla)
+    // para que el borde tallado siga la curva sin facetarse: con el paso viejo
+    // (0,3 m) el seno de edgeWobble quedaba aproximado por tramos rectos y se
+    // veía angular/"raro". Barato igual (un puñado de lineTo por frame).
+    const step = Math.max(0.12, (top - bot) / 240);
     // El muestreo se ancla a una GRILLA DE MUNDO (múltiplos de `step`), no a
     // `top` (que se desliza con la cámara): si arrancáramos en `top`, los
     // vértices quedan en filas de pantalla fijas pero su altura de mundo se
