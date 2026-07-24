@@ -99,12 +99,17 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   objeto `run` (active/started/left/peak/falling; `onPress()` ARMA la carrera
   con el reloj EN PAUSA, `onGrab()` — main lo llama al primer agarre/perfecto —
   recién arranca el reloj: el salto inicial y sus reintentos NO descuentan
-  tiempo; `update(dt)` corre el reloj solo si `started` y dispara la caída a la
-  tierra con `climb.startSlip(h, 0, dur)`, `finish()` SIEMPRE paga el botín) y
-  `setMode()` (swap de alturas zen↔carrera, la carrera SIEMPRE arranca desde la
-  tierra, + `climb.resetForMode()`). `volverAZona0()` es el "rebirth" suave:
-  baja la altura del modo activo a 0 sin tocar hormigas/savia/mejoras/récord y
-  paga anillos del monte por la altura sacrificada (`anillosPorAltura(h)`,
+  tiempo; `update(dt)` corre el reloj solo si `started` y dispara la caída con
+  `climb.startSlip(h, pisoFloor(), dur)` (a la tierra si no hay pisos
+  desbloqueados), `finish()` SIEMPRE paga el botín) y `setMode()` (swap de
+  alturas zen↔carrera; al volver a carrera arranca en `pisoFloor()`, el piso
+  más alto ya desbloqueado — nunca vuelve a foja cero de nuevo, ni al cambiar
+  de modo ni al recargar la página — + `climb.resetForMode()`).
+  `volverAZona0()` es el "rebirth" suave (única forma de bajar por debajo de
+  un piso ya cruzado, y solo porque es voluntario y confirmado con dos
+  toques): baja la altura del modo activo a 0 sin tocar
+  hormigas/savia/mejoras/récord y paga anillos del monte por la altura
+  sacrificada (`anillosPorAltura(h)`,
   prestige aditivo; devuelve cuántos ganó para la UI).
   Importa `state`, `climb` y `prestigeMul` de economy (sin ciclos).
 - `cosmetics.js` — el Ropero: `SKINS` (11 pieles gratis, `skinHex(id)` con

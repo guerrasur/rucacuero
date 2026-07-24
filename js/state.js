@@ -16,9 +16,10 @@ export const state = {
   zen: { height: 0, best: 0 },
   // modo carrera: hormigas coloradas, récord y mejoras propias. Cada run
   // arranca siempre desde la tierra.
-  // pisos: checkpoints de altura (500/10.000/100.000 m, ver carrera.PISOS)
+  // pisos: checkpoints de altura (500/10.000/100.000 m, ver PISOS más abajo)
   // desbloqueados una sola vez; la caída al agotarse el tiempo para en el
-  // más alto desbloqueado en vez de ir a la tierra.
+  // más alto desbloqueado en vez de ir a la tierra (y también el punto de
+  // partida al volver a carrera, ver pisoFloorOf).
   carrera: { ants: 0, best: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0, primosalto: 0, rachadivina: 0, ventil: 0 }, pisos: [false, false, false] },
   upgrades: { feromonas: 0, reina: 0, nudos: 0, mielada: 0, ofrenda: 0 },
   unlocks: [],
@@ -38,6 +39,17 @@ export const state = {
   // ropero: cosméticos comprados y qué lleva puesto (null = default)
   cosmetics: { owned: [], sombrero: null, chiripa: null, piel: 'ocre' },
 };
+
+// Pisos: checkpoints de altura de la carrera. Viven acá (y no en carrera.js)
+// para que load() también los respete sin armar un ciclo de imports.
+export const PISOS = [500, 10000, 100000];
+export function pisoFloorOf(pisos) {
+  let floor = 0;
+  for (let i = 0; i < PISOS.length; i++) {
+    if (pisos[i]) floor = PISOS[i];
+  }
+  return floor;
+}
 
 // Reducción de movimiento: vive acá (y no en ui) porque scene también la
 // necesita y ui ya importa a scene — ponerla en ui armaría un ciclo.
@@ -103,12 +115,13 @@ export function load() {
     state.carrera.upgrades[k] = Math.floor(num(cup[k]));
   }
   state.carrera.pisos = state.carrera.pisos.map((_, i) => !!(Array.isArray(ca.pisos) && ca.pisos[i]));
-  // la altura activa según el modo: la carrera siempre arranca desde la tierra
+  // la altura activa según el modo: en carrera arranca en el piso más alto ya
+  // desbloqueado (nunca vuelve a foja cero de nuevo, ver pisoFloorOf)
   if (state.mode === 'zen') {
     state.height = state.zen.height;
     state.bestHeight = state.zen.best;
   } else {
-    state.height = 0;
+    state.height = pisoFloorOf(state.carrera.pisos);
     state.bestHeight = state.carrera.best;
   }
   const up = data.upgrades || {};
