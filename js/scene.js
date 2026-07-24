@@ -17,6 +17,8 @@ const C = {
   tierra: '#3B2A1B', // suelo: marrón entre tinta y ocre
   nocheDeep: '#0C120B',
   nocheSoft: '#1A2617',
+  madera: '#8A5A2E', // tablón claro de la plataforma de los pisos
+  maderaOsc: '#4A2E19', // tablón oscuro / puntales
 };
 
 const VISIBLE_M = 9; // metros de rama visibles en pantalla
@@ -209,6 +211,7 @@ export class Scene {
     this.drawMilestones();
     this.drawRecordLine();
     this.drawPisos();
+    this.drawPisoPlataformas();
     this.drawAnts(view.antRate);
     this.drawGround();
     this.drawChargeOverlays();
@@ -494,6 +497,69 @@ export class Scene {
       ctx.stroke();
     }
     ctx.setLineDash(DASH_NONE);
+    ctx.globalAlpha = 1;
+  }
+
+  // plataforma de madera que rodea el tronco en cada piso ya cruzado: tapa
+  // la línea entrecortada en el ancho de la rama y cuelga de un par de
+  // puntales clavados contra el tronco, como si estuviera construida ahí.
+  drawPisoPlataformas() {
+    if (state.mode !== 'carrera') return;
+    for (let i = 0; i < PISOS.length; i++) {
+      if (!state.carrera.pisos[i]) continue;
+      const p = PISOS[i];
+      const y = this.yOf(p);
+      if (y < -60 || y > this.H + 60) continue;
+      this.drawPlataforma(this.branchX(p), y);
+    }
+  }
+
+  drawPlataforma(bx, y) {
+    const { ctx } = this;
+    const hw = this.bw / 2 + 16; // sobresale un poco del tronco, como un collar
+    const th = 16; // grosor del tablón
+
+    // puntales: un par de vigas en diagonal que clavan la plataforma al tronco
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = C.tinta;
+    ctx.fillStyle = C.maderaOsc;
+    for (const side of [-1, 1]) {
+      const outerX = bx + side * hw * 0.85;
+      const innerX = bx + side * (this.bw / 2 - 2);
+      const topY = y + th;
+      const botY = y + th + 24;
+      ctx.beginPath();
+      ctx.moveTo(outerX, topY);
+      ctx.lineTo(innerX, botY);
+      ctx.lineTo(innerX - side * 7, botY);
+      ctx.lineTo(outerX - side * 7, topY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // el tablón: tres tablas unidas, borde grueso de tinta
+    const planks = 3;
+    const pw = (hw * 2) / planks;
+    ctx.lineWidth = 3.5;
+    for (let k = 0; k < planks; k++) {
+      const x = bx - hw + k * pw;
+      ctx.fillStyle = k % 2 === 0 ? C.madera : C.maderaOsc;
+      ctx.fillRect(x, y, pw, th);
+      ctx.strokeStyle = C.tinta;
+      ctx.strokeRect(x, y, pw, th);
+    }
+    // veta de madera: un trazo curvo por tabla
+    ctx.strokeStyle = C.tinta;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.35;
+    for (let k = 0; k < planks; k++) {
+      const x = bx - hw + k * pw + pw * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x - pw * 0.3, y + th * 0.35);
+      ctx.quadraticCurveTo(x, y + th * 0.55, x + pw * 0.3, y + th * 0.35);
+      ctx.stroke();
+    }
     ctx.globalAlpha = 1;
   }
 
