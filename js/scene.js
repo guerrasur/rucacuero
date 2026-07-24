@@ -32,6 +32,19 @@ const DASH_RECORD = [9, 8];
 const DASH_PISO = [16, 11];
 const DASH_NONE = [];
 
+// Envolvente del viento dibujado: entra y sale rápido (12%/15% de la
+// ráfaga) pero se mantiene bien visible el resto — así lo que se ve en
+// pantalla dura prácticamente lo mismo que la ráfaga real, en vez de una
+// campana que se apaga desde la mitad y deja un tramo "invisible" donde el
+// viento ya angostó la zona dulce pero no se ve nada en pantalla.
+const WIND_FADE_IN = 0.12;
+const WIND_FADE_OUT = 0.85;
+function windEnvelope(g) {
+  if (g < WIND_FADE_IN) return g / WIND_FADE_IN;
+  if (g > WIND_FADE_OUT) return 1 - (g - WIND_FADE_OUT) / (1 - WIND_FADE_OUT);
+  return 1;
+}
+
 function hexLerp(a, b, t) {
   // sin .map: se llama cada frame en drawBranch, no conviene alocar arrays
   const ar = parseInt(a.slice(1, 3), 16);
@@ -174,11 +187,14 @@ export class Scene {
     p.bezierCurveTo(150, -4, 154, -27, 137, -28);
     p.bezierCurveTo(121, -29, 119, -8, 146, -1);
     p.bezierCurveTo(184, 8, 226, -12, 268, -5);
+    // speed <= 1 en los cuatro: ninguno termina de cruzar la pantalla antes
+    // de que la ráfaga realmente termine (si alguno pasa de 1, se va de la
+    // pantalla temprano y desincroniza el efecto de lo que se ve).
     return [
-      { path: p, yf: 0.2, sc: 1.15, ph: 0.9 },
-      { path: p, yf: 0.38, sc: 0.8, ph: 2.2 },
-      { path: p, yf: 0.55, sc: 1.0, ph: 4.1 },
-      { path: p, yf: 0.74, sc: 0.7, ph: 5.6 },
+      { path: p, yf: 0.2, sc: 1.15, ph: 0.9, speed: 0.85 },
+      { path: p, yf: 0.38, sc: 0.8, ph: 2.2, speed: 0.95 },
+      { path: p, yf: 0.55, sc: 1.0, ph: 4.1, speed: 1.0 },
+      { path: p, yf: 0.74, sc: 0.7, ph: 5.6, speed: 0.9 },
     ];
   }
 
@@ -1123,16 +1139,19 @@ export class Scene {
     const g = wind.gustProgress();
 
     if (g > 0) {
-      // los trazos recorren la pantalla al mismo ritmo que la ráfaga (0→1):
-      // así se van de la pantalla justo cuando la ráfaga realmente termina,
-      // en vez de desaparecer antes y dejar la zona angosta sin viento a la vista.
+      // cada trazo cruza a su propio ritmo (speed <= 1, ver makeWindStrokes)
+      // para que no se muevan en bloque perfecto — la envolvente los mantiene
+      // bien visibles casi toda la ráfaga, así lo que se ve en pantalla dura
+      // lo mismo que el efecto real.
+      const alpha = windEnvelope(Math.min(1, g)) * 0.65;
       for (const s of this.strokes) {
-        const xoff = -340 + g * (this.W + 700);
+        const p = Math.min(1, g * s.speed);
+        const xoff = -340 + p * (this.W + 700);
         const y = s.yf * this.H + Math.sin(this.t * 2 + s.ph) * 7;
         ctx.save();
         ctx.translate(xoff, y);
         ctx.scale(s.sc, s.sc);
-        ctx.globalAlpha = Math.sin(Math.PI * Math.min(1, g)) * 0.65;
+        ctx.globalAlpha = alpha;
         ctx.strokeStyle = C.hueso;
         ctx.lineWidth = 4;
         ctx.lineCap = 'round';
