@@ -19,7 +19,7 @@ export const state = {
   // pisos: checkpoints de altura (500/10.000/100.000 m, ver carrera.PISOS)
   // desbloqueados una sola vez; la caída al agotarse el tiempo para en el
   // más alto desbloqueado en vez de ir a la tierra.
-  carrera: { ants: 0, best: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0 }, pisos: [false, false, false] },
+  carrera: { ants: 0, best: 0, upgrades: { resorte: 0, reloj: 0, eco: 0, botin: 0, primosalto: 0, rachadivina: 0, zancada: 0, ventil: 0 }, pisos: [false, false, false] },
   upgrades: { feromonas: 0, reina: 0, nudos: 0, mielada: 0, ofrenda: 0 },
   unlocks: [],
   quest: null, // misión activa: { id, target, progress }
@@ -49,6 +49,27 @@ export function menosMovimiento() {
 function num(x) {
   const n = Number(x);
   return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+// Formato de altura/distancia: hasta 1000 m se muestra en metros (como siempre),
+// de ahí para arriba en kilómetros con 2 decimales y coma (es-AR): 1024 → "1,02 km".
+// `dec` son los decimales de la parte en metros (el HUD usa 1, los carteles 0).
+const KM_UMBRAL = 1000;
+export function altEsKm(m) {
+  return m >= KM_UMBRAL;
+}
+export function altNum(m, dec = 0) {
+  if (m >= KM_UMBRAL) {
+    return (m / 1000).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return m.toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+export function altUnidad(m) {
+  return m >= KM_UMBRAL ? 'km' : 'm';
+}
+// String completo con unidad, para carteles/récord/feedback.
+export function fmtAltura(m, dec = 0) {
+  return `${altNum(m, dec)} ${altUnidad(m)}`;
 }
 
 export function load() {

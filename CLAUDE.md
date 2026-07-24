@@ -5,7 +5,9 @@ vanilla con ES modules, **sin build, sin dependencias, sin framework**. Se
 sirve estático: `python3 -m http.server 8123` y abrir `http://localhost:8123`.
 
 Idioma del proyecto: **español rioplatense** (UI, comentarios, commits).
-Formato de números: `toLocaleString('es-AR')` (coma decimal).
+Formato de números: `toLocaleString('es-AR')` (coma decimal). La altura/distancia
+se muestra con `fmtAltura`/`altNum`/`altUnidad` (state.js): metros hasta 1000,
+kilómetros con 2 decimales de ahí para arriba (1024 m → "1,02 km").
 
 ## Dos modos (botón `#modo-btn`)
 
@@ -70,7 +72,8 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
 
 - `state.js` — objeto `state` + load/save/autosave. Schema del save:
   `{ v:1, mode:'carrera'|'zen', ants, sap, height, bestHeight,
-  zen:{height,best}, carrera:{ants,best,upgrades:{resorte,reloj,eco,botin}},
+  zen:{height,best},
+  carrera:{ants,best,upgrades:{resorte,reloj,eco,botin,primosalto,rachadivina,zancada,ventil},pisos:[bool]},
   upgrades:{feromonas,reina,nudos,mielada,ofrenda}, unlocks:[ids],
   quest:{id,target,progress}|null, questsDone,
   life:{metros,perfectos,chucaos,lluvias,gastadas,enjambres}, logros:[ids],
@@ -85,7 +88,13 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   hormigas), `slipChance(windy)` (8% base ×0.82^nudos,
   piso 1%), `tick(dt, sapMul, genAnts)` (negras solo en zen; savia siempre),
   `buy()`.
-- `carrera.js` — modo carrera: `R_UPGRADES` (4, en coloradas), `timeTotal()`
+- `carrera.js` — modo carrera: `R_UPGRADES` (8, en coloradas: resorte/reloj/eco/
+  botin + `primosalto` (envión de partida gratis, +metros que se duplican por
+  nivel, respeta pisos vía `primosaltoMetros()` aplicado en `run.onPress()`),
+  `rachadivina` (al fallar, la racha se recorta en vez de resetear — climb la
+  lee), `zancada` (piso extra de metros en un agarre común — climb la lee) y
+  `ventil` "Ventil Forte" (la ráfaga angosta menos la zona dulce, sin pasar la
+  base — climb la lee en `sweetW()`)), `timeTotal()`
   (tabla `RELOJ_TIEMPOS`, 5→7→…→90 s),
   objeto `run` (active/started/left/peak/falling; `onPress()` ARMA la carrera
   con el reloj EN PAUSA, `onGrab()` — main lo llama al primer agarre/perfecto —
@@ -121,7 +130,14 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   soltada no perfecta la corta (`breakStreak()`); badge `#mult` en el HUD con
   pop por perfecto. Al soltar un perfecto se emite `perfect-release` →
   `scene.perfectFlash()` (destello inmediato de la banda dorada, no espera el
-  aterrizaje). `MIN_TARGET_GAP = MAX_JUMP*0.5` (3 m):
+  aterrizaje). El hueco entre nudos se topea a
+  `MAX_KNOT_GAP = MAX_JUMP - 2·SWEET_BASE` (4,9 m) para que a carga máxima
+  SIEMPRE quede aire para pasarse: un nudo pegado al tope del salto se resolvía
+  como "perfecto" con solo mantener presionado (bug corregido). La racha se corta
+  con `breakStreak(hard)`: `hard` resetea entero (cambio de modo / fin de
+  carrera), sin `hard` en carrera la mejora `rachadivina` conserva una fracción
+  (`RACHA_DIVINA_KEEP`). La mejora `zancada` suma `RUN_ZANCADA·nivel` metros a un
+  agarre común (no perfecto). `MIN_TARGET_GAP = MAX_JUMP*0.5` (3 m):
   si el próximo nudo exige menos del 50% de la carga, `press()` apunta directo
   al siguiente cuando entra en el salto máximo (`MAX_JUMP + 0.1`) — nunca un
   objetivo sin tiempo de reacción ni rachas perdidas por un tronco mal
@@ -208,9 +224,15 @@ en GPU real.
 
 ## PWA
 
-`manifest.json` + `sw.js` (cache-first, precache cerrado) + `icons/`.
+`manifest.json` + `sw.js` + `icons/`. Estrategia **network-first para la app
+shell** (documento/JS/CSS: al recargar con conexión siempre traés la última
+versión; el caché es solo respaldo offline) y **cache-first** para fuentes,
+íconos e imágenes. El registro usa `updateViaCache:'none'` + `reg.update()` y
+recarga UNA vez en `controllerchange` (solo si ya había un SW controlando), así
+la actualización se ve sin reabrir la app — antes, cache-first dejaba pantalla
+rancia aun recargando (pasaba en Brave iOS).
 **REGLA: cualquier cambio en un asset requiere bumpear `CACHE`
-(`rucacuero-vN`) en `sw.js`** o los usuarios instalados no ven la novedad.
+(`rucacuero-vN`) en `sw.js`** o el respaldo offline queda viejo.
 En localhost el SW no se registra salvo `?sw=1` — desarrollo y tests siempre
 ven la versión fresca. Los PNG de `icons/` se generaron una vez desde
 `icons/icon.svg` con Playwright (screenshot); no hay build.

@@ -1,5 +1,5 @@
 // Ruca Cuero — loop principal y wiring de input.
-import { state, load, initAutosave } from './state.js';
+import { state, load, initAutosave, fmtAltura } from './state.js';
 import * as economy from './economy.js';
 import { climb, wind } from './climb.js';
 import { Scene } from './scene.js';
@@ -147,7 +147,7 @@ function frame(now) {
         if (zen) quests.note('slip');
         break;
       case 'zone':
-        ui.showBanner(ev.zone.name, `${ev.zone.at} m`);
+        ui.showBanner(ev.zone.name, fmtAltura(ev.zone.at));
         audio.zoneFanfare();
         break;
     }
@@ -223,7 +223,7 @@ function frame(now) {
         const floor = carrera.pisoFloor();
         ui.showBanner(
           '¡Se acabó el tiempo!',
-          floor > 0 ? `de vuelta al piso de los ${floor.toLocaleString('es-AR')} m` : 'de vuelta a la tierra',
+          floor > 0 ? `de vuelta al piso de los ${fmtAltura(floor)}` : 'de vuelta a la tierra',
         );
         audio.slip();
         scene.burst('dust');
@@ -231,12 +231,12 @@ function frame(now) {
         break;
       }
       case 'piso':
-        ui.showBanner('¡Piso desbloqueado!', `checkpoint a los ${ev.piso.toLocaleString('es-AR')} m`);
+        ui.showBanner('¡Piso desbloqueado!', `checkpoint a los ${fmtAltura(ev.piso)}`);
         audio.zoneFanfare();
         break;
       case 'run-end': {
-        const m = ev.peak.toLocaleString('es-AR', { maximumFractionDigits: 1 });
-        ui.showBanner('Fin de la carrera', `${m} m · +${ev.reward.toLocaleString('es-AR')} coloradas`);
+        const m = fmtAltura(ev.peak, 1);
+        ui.showBanner('Fin de la carrera', `${m} · +${ev.reward.toLocaleString('es-AR')} coloradas`);
         ui.flash(`+${ev.reward.toLocaleString('es-AR')} hormigas coloradas`, 'good');
         audio.questDone();
         break;
@@ -272,7 +272,23 @@ document.addEventListener('visibilitychange', () => {
 // para que el desarrollo y los tests nunca vean caché rancio.
 const esLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
 if ('serviceWorker' in navigator && (!esLocal || new URLSearchParams(location.search).has('sw'))) {
-  navigator.serviceWorker.register('sw.js');
+  // updateViaCache:'none' → el navegador nunca sirve sw.js del caché HTTP, así
+  // que siempre detecta la versión nueva (clave en iOS/Brave). Además pedimos
+  // un update en cada carga y recargamos una sola vez cuando el SW nuevo toma
+  // el control, para que la actualización se vea sin tener que reabrir la app.
+  const yaControlada = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+    reg.update();
+    // Solo recargamos si YA había un SW controlando (o sea, una actualización);
+    // en la primera visita no hay nada viejo que reemplazar y no recargamos.
+    if (!yaControlada) return;
+    let recargado = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (recargado) return;
+      recargado = true;
+      location.reload();
+    });
+  });
 }
 
 // acceso para debug y pruebas automatizadas
