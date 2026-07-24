@@ -164,13 +164,11 @@ export const run = {
     this.falling = false;
     // "Primosalto": envión de partida GRATIS antes del primer input. Sube desde
     // el piso desbloqueado (respeta los checkpoints) y puede destrabar uno nuevo.
+    // Se anima como un salto (climb.startBonusLeap) en vez de teletransportar:
+    // state.height (y el checkPisos que dispara) llegan recién al aterrizar.
     const boost = primosaltoMetros();
     if (boost > 0) {
-      state.height = pisoFloor() + boost;
-      if (state.height > state.bestHeight) state.bestHeight = state.height;
-      checkPisos(state.height);
-      // re-apunta el próximo nudo a la nueva altura (sin heredar zona/racha)
-      climb.resetForMode();
+      climb.startBonusLeap(state.height, pisoFloor() + boost);
     }
     this.peak = state.height;
     this.emit('run-start', { total: this.left });
