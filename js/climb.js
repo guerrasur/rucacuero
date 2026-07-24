@@ -25,7 +25,6 @@ const RUN_RESORTE = 0.08; // carrera: +salto base por nivel de "piernas de resor
 // carrera "Racha Divina": al fallar, en vez de reset total, se conserva esta
 // fracción de la racha de perfectos (por nivel; nv0 = reset total de siempre).
 const RACHA_DIVINA_KEEP = [0, 0.3, 0.5, 0.7, 0.8];
-const RUN_ZANCADA = 0.6; // carrera "Zancada de Roble": +metros de piso por nivel en un agarre común
 const RUN_VENTIL = 0.05; // carrera "Ventil Forte": ensancha la zona dulce en ráfaga por nivel (nunca más que la base)
 // El próximo salto nunca exige menos del 50% de la carga: un nudo más cerca
 // que esto se saltea (nada de perder la racha por un tronco mal posicionado).
@@ -301,14 +300,8 @@ export const climb = {
         return;
       }
     }
-    // "Zancada de Roble" (carrera): un agarre común (no perfecto ni encadenado)
-    // suma un piso extra de metros sobre el nudo — hasta un salto mediocre rinde.
-    const zancada =
-      !this.perfect && !this.chainSafe && state.mode === 'carrera'
-        ? RUN_ZANCADA * state.carrera.upgrades.zancada
-        : 0;
-    const gained = this.leapTo + zancada - state.height;
-    state.height = this.leapTo + zancada;
+    const gained = this.leapTo - state.height;
+    state.height = this.leapTo;
     if (state.height > state.bestHeight) state.bestHeight = state.height;
     const z = zoneAt(state.height);
     if (this.lastZone && z !== this.lastZone) this.emit('zone', { zone: z });
@@ -366,8 +359,8 @@ export const climb = {
     this.chainSafe = false;
     // si esto se llama a mitad del envión de Primosalto (cambio de modo,
     // rebirth) la bandera quedaba pegada: el siguiente salto normal saltaba
-    // arrive() entero (sin tirada de mala suerte/zancada) y aterrizaba de
-    // golpe unos metros más arriba de lo que tocaba.
+    // arrive() entero (sin tirada de mala suerte) y aterrizaba de golpe unos
+    // metros más arriba de lo que tocaba.
     this.bonusLeap = false;
     this.breakStreak(true);
     this.lastZone = null;

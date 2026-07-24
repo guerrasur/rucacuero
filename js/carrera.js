@@ -64,14 +64,6 @@ export const R_UPGRADES = [
     max: 4,
   },
   {
-    id: 'zancada',
-    name: 'Zancada de Roble',
-    desc: 'Piernas de tronco: hasta un agarre común avanza un piso extra de metros (+0,6 m por nivel).',
-    baseCost: 90,
-    growth: 1.9,
-    max: 10,
-  },
-  {
     id: 'ventil',
     name: 'Ventil Forte',
     desc: 'Pulmón de fuelle: la ráfaga te angosta menos la zona dulce (reduce el efecto del viento por nivel).',
