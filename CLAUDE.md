@@ -73,7 +73,7 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
 - `state.js` — objeto `state` + load/save/autosave. Schema del save:
   `{ v:1, mode:'carrera'|'zen', ants, sap, height, bestHeight,
   zen:{height,best},
-  carrera:{ants,best,upgrades:{resorte,reloj,eco,botin,primosalto,rachadivina,zancada},pisos:[bool]},
+  carrera:{ants,best,upgrades:{resorte,reloj,eco,botin,primosalto,rachadivina,zancada,ventil},pisos:[bool]},
   upgrades:{feromonas,reina,nudos,mielada,ofrenda}, unlocks:[ids],
   quest:{id,target,progress}|null, questsDone,
   life:{metros,perfectos,chucaos,lluvias,gastadas,enjambres}, logros:[ids],
@@ -88,12 +88,13 @@ hueso que angostan la zona dulce — el peligro se ve, no se anuncia con UI).
   hormigas), `slipChance(windy)` (8% base ×0.82^nudos,
   piso 1%), `tick(dt, sapMul, genAnts)` (negras solo en zen; savia siempre),
   `buy()`.
-- `carrera.js` — modo carrera: `R_UPGRADES` (7, en coloradas: resorte/reloj/eco/
+- `carrera.js` — modo carrera: `R_UPGRADES` (8, en coloradas: resorte/reloj/eco/
   botin + `primosalto` (envión de partida gratis, +metros que se duplican por
   nivel, respeta pisos vía `primosaltoMetros()` aplicado en `run.onPress()`),
   `rachadivina` (al fallar, la racha se recorta en vez de resetear — climb la
-  lee) y `zancada` (piso extra de metros en un agarre común — climb la lee)),
-  `timeTotal()`
+  lee), `zancada` (piso extra de metros en un agarre común — climb la lee) y
+  `ventil` "Ventil Forte" (la ráfaga angosta menos la zona dulce, sin pasar la
+  base — climb la lee en `sweetW()`)), `timeTotal()`
   (tabla `RELOJ_TIEMPOS`, 5→7→…→90 s),
   objeto `run` (active/started/left/peak/falling; `onPress()` ARMA la carrera
   con el reloj EN PAUSA, `onGrab()` — main lo llama al primer agarre/perfecto —
@@ -223,9 +224,15 @@ en GPU real.
 
 ## PWA
 
-`manifest.json` + `sw.js` (cache-first, precache cerrado) + `icons/`.
+`manifest.json` + `sw.js` + `icons/`. Estrategia **network-first para la app
+shell** (documento/JS/CSS: al recargar con conexión siempre traés la última
+versión; el caché es solo respaldo offline) y **cache-first** para fuentes,
+íconos e imágenes. El registro usa `updateViaCache:'none'` + `reg.update()` y
+recarga UNA vez en `controllerchange` (solo si ya había un SW controlando), así
+la actualización se ve sin reabrir la app — antes, cache-first dejaba pantalla
+rancia aun recargando (pasaba en Brave iOS).
 **REGLA: cualquier cambio en un asset requiere bumpear `CACHE`
-(`rucacuero-vN`) en `sw.js`** o los usuarios instalados no ven la novedad.
+(`rucacuero-vN`) en `sw.js`** o el respaldo offline queda viejo.
 En localhost el SW no se registra salvo `?sw=1` — desarrollo y tests siempre
 ven la versión fresca. Los PNG de `icons/` se generaron una vez desde
 `icons/icon.svg` con Playwright (screenshot); no hay build.

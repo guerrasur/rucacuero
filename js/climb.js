@@ -26,6 +26,7 @@ const RUN_RESORTE = 0.08; // carrera: +salto base por nivel de "piernas de resor
 // fracción de la racha de perfectos (por nivel; nv0 = reset total de siempre).
 const RACHA_DIVINA_KEEP = [0, 0.3, 0.5, 0.7, 0.8];
 const RUN_ZANCADA = 0.6; // carrera "Zancada de Roble": +metros de piso por nivel en un agarre común
+const RUN_VENTIL = 0.05; // carrera "Ventil Forte": ensancha la zona dulce en ráfaga por nivel (nunca más que la base)
 // El próximo salto nunca exige menos del 50% de la carga: un nudo más cerca
 // que esto se saltea (nada de perder la racha por un tronco mal posicionado).
 const MIN_TARGET_GAP = MAX_JUMP * 0.5;
@@ -187,7 +188,11 @@ export const climb = {
   },
   sweetW() {
     // "abrigo de brisa": la ráfaga angosta menos la zona dulce
-    const windW = state.unlocks.includes('brisa') ? 0.38 : SWEET_WIND;
+    let windW = state.unlocks.includes('brisa') ? 0.38 : SWEET_WIND;
+    // carrera "Ventil Forte": reduce la reducción del viento, sin pasar la base
+    if (state.mode === 'carrera') {
+      windW = Math.min(SWEET_BASE, windW + RUN_VENTIL * state.carrera.upgrades.ventil);
+    }
     return (wind.windy() ? windW : SWEET_BASE) * zoneAt(state.height).sweetMul * this.mods.sweetMul();
   },
   // la micro-zona perfecta se angosta todavía más con ráfaga (el "abrigo de

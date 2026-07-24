@@ -272,7 +272,23 @@ document.addEventListener('visibilitychange', () => {
 // para que el desarrollo y los tests nunca vean caché rancio.
 const esLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
 if ('serviceWorker' in navigator && (!esLocal || new URLSearchParams(location.search).has('sw'))) {
-  navigator.serviceWorker.register('sw.js');
+  // updateViaCache:'none' → el navegador nunca sirve sw.js del caché HTTP, así
+  // que siempre detecta la versión nueva (clave en iOS/Brave). Además pedimos
+  // un update en cada carga y recargamos una sola vez cuando el SW nuevo toma
+  // el control, para que la actualización se vea sin tener que reabrir la app.
+  const yaControlada = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+    reg.update();
+    // Solo recargamos si YA había un SW controlando (o sea, una actualización);
+    // en la primera visita no hay nada viejo que reemplazar y no recargamos.
+    if (!yaControlada) return;
+    let recargado = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (recargado) return;
+      recargado = true;
+      location.reload();
+    });
+  });
 }
 
 // acceso para debug y pruebas automatizadas

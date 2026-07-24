@@ -71,6 +71,14 @@ export const R_UPGRADES = [
     growth: 1.9,
     max: 10,
   },
+  {
+    id: 'ventil',
+    name: 'Ventil Forte',
+    desc: 'Pulmón de fuelle: la ráfaga te angosta menos la zona dulce (reduce el efecto del viento por nivel).',
+    baseCost: 70,
+    growth: 1.85,
+    max: 5,
+  },
 ];
 
 // Metros del envión de partida ("Primosalto"): 100, 200, 400… (se duplican).

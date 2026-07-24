@@ -1,6 +1,10 @@
-// Service worker de Ruca Cuero: cache-first con precache cerrado.
+// Service worker de Ruca Cuero.
+// La app (HTML/JS/CSS) va por RED primero: al recargar con conexión SIEMPRE ves
+// la última versión, y el caché queda solo de respaldo offline (antes era
+// cache-first y una recarga nunca traía la actualización — pasaba en Brave iOS).
+// Las fuentes, íconos e imágenes (pesados e inmutables) siguen cache-first.
 // REGLA: cualquier cambio en un asset requiere bumpear CACHE (rucacuero-vN).
-const CACHE = 'rucacuero-v22';
+const CACHE = 'rucacuero-v23';
 const ASSETS = [
   './',
   'index.html',
@@ -44,8 +48,28 @@ self.addEventListener('activate', e => {
   );
 });
 
+// La app (documento, JS y CSS) se resuelve por red primero y refresca el caché;
+// si no hay conexión, cae al caché. Todo lo demás es cache-first.
+const APP_SHELL = /\.(?:html|js|css)$/i;
+
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+
+  const netFirst = e.request.mode === 'navigate' || url.pathname === '/' || APP_SHELL.test(url.pathname);
+  if (netFirst) {
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(e.request, { ignoreSearch: true }))
+    );
+    return;
+  }
   e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(hit => hit || fetch(e.request)));
 });
