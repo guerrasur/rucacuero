@@ -364,6 +364,11 @@ export const climb = {
     this.power = 0;
     this.t = 0;
     this.chainSafe = false;
+    // si esto se llama a mitad del envión de Primosalto (cambio de modo,
+    // rebirth) la bandera quedaba pegada: el siguiente salto normal saltaba
+    // arrive() entero (sin tirada de mala suerte/zancada) y aterrizaba de
+    // golpe unos metros más arriba de lo que tocaba.
+    this.bonusLeap = false;
     this.breakStreak(true);
     this.lastZone = null;
     this.chargeAlpha = 0;

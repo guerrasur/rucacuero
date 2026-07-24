@@ -319,6 +319,13 @@ body.charging #zone-banner { filter: opacity(.12); }
 #ropero-btn { left: auto; right: 14px; }
 #shop-btn:active, #ropero-btn:active { transform: scale(.92); }
 #shop-btn svg, #ropero-btn svg { width: 30px; height: 30px; }
+#shop-btn { transition: opacity .3s; }
+/* con la carrera en curso la tienda queda apagada (como el modo-btn en
+   zen): solo se puede mejorar entre carreras */
+body.run-activa #shop-btn {
+  opacity: .38;
+  pointer-events: none;
+}
 
 /* botón de modo: el yin-yang. Activo en carrera (te lleva al zen);
    en zen es el mismo botón pero desactivado (tocarlo te devuelve). */

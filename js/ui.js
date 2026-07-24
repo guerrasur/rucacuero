@@ -214,6 +214,9 @@ function setSolapa(id) {
 }
 
 function openShop() {
+  // con la carrera en curso el hormiguero queda bloqueado: solo se mejora
+  // entre carreras (el botón ya se ve "apagado" via body.run-activa)
+  if (state.mode === 'carrera' && carrera.run.active) return;
   if (roperoAbierto) closeRopero();
   shopOpen = true;
   els.shop.hidden = false;
@@ -687,7 +690,18 @@ export function onClimbEvent(ev) {
 }
 
 // cache de lo último escrito: tocar el DOM solo cuando el texto cambia
-const hud = { h: '', hUnit: '', rec: '', ants: '', sap: '', bar: -1, quest: '', charging: false, timer: '' };
+const hud = {
+  h: '',
+  hUnit: '',
+  rec: '',
+  ants: '',
+  sap: '',
+  bar: -1,
+  quest: '',
+  charging: false,
+  timer: '',
+  runActiva: false,
+};
 
 export function update() {
   // durante la carga, la UI se atenúa (clase en body, solo cuando cambia)
@@ -695,6 +709,13 @@ export function update() {
   if (charging !== hud.charging) {
     hud.charging = charging;
     document.body.classList.toggle('charging', charging);
+  }
+  // con la carrera en curso el hormiguero (mejoras) queda apagado: solo se
+  // puede mejorar entre carreras
+  const runActiva = state.mode === 'carrera' && carrera.run.active;
+  if (runActiva !== hud.runActiva) {
+    hud.runActiva = runActiva;
+    document.body.classList.toggle('run-activa', runActiva);
   }
   // el contador principal: metros (1 decimal) hasta 1000, km (2 decimales) arriba
   const vh = climb.visualHeight();
