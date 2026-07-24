@@ -3,9 +3,11 @@
 // alcanzada paga hormigas coloradas (moneda propia del modo, aparte de las
 // negras del zen). Los perfectos encadenados agrandan el salto
 // exponencialmente y sin tope — eso vive en climb.js (jumpMul).
-import { state, save } from './state.js';
+import { state, save, PISOS, pisoFloorOf } from './state.js';
 import { climb } from './climb.js';
 import { prestigeMul } from './economy.js';
+
+export { PISOS };
 
 export const RUN_TIME = 5; // segundos base de cada carrera (el reloj la estira hasta 90)
 
@@ -86,17 +88,13 @@ export function timeTotal() {
   return RELOJ_TIEMPOS[Math.min(state.carrera.upgrades.reloj, RELOJ_TIEMPOS.length - 1)];
 }
 
-// Pisos: checkpoints de altura fijos en la carrera. Al cruzar uno por primera
-// vez queda desbloqueado para siempre (se persiste); la caída al agotarse el
-// tiempo para en el más alto desbloqueado en vez de ir a la tierra.
-export const PISOS = [500, 10000, 100000];
-
+// Pisos: checkpoints de altura fijos en la carrera (PISOS vive en state.js
+// para que load() también lo respete). Al cruzar uno por primera vez queda
+// desbloqueado para siempre (se persiste); la caída al agotarse el tiempo, y
+// también el regreso a carrera desde otro modo, paran en el más alto
+// desbloqueado en vez de ir a la tierra.
 export function pisoFloor() {
-  let floor = 0;
-  for (let i = 0; i < PISOS.length; i++) {
-    if (state.carrera.pisos[i]) floor = PISOS[i];
-  }
-  return floor;
+  return pisoFloorOf(state.carrera.pisos);
 }
 
 function checkPisos(h) {
@@ -284,7 +282,8 @@ export function setMode(m) {
     state.height = state.zen.height;
     state.bestHeight = state.zen.best;
   } else {
-    state.height = 0; // la carrera siempre arranca desde la tierra
+    // vuelve al piso más alto ya desbloqueado, nunca a foja cero de nuevo
+    state.height = pisoFloor();
     state.bestHeight = state.carrera.best;
   }
   climb.resetForMode();

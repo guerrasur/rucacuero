@@ -175,10 +175,10 @@ export class Scene {
     p.bezierCurveTo(121, -29, 119, -8, 146, -1);
     p.bezierCurveTo(184, 8, 226, -12, 268, -5);
     return [
-      { path: p, yf: 0.2, sc: 1.15, speed: 1.15, ph: 0.9 },
-      { path: p, yf: 0.38, sc: 0.8, speed: 0.9, ph: 2.2 },
-      { path: p, yf: 0.55, sc: 1.0, speed: 1.3, ph: 4.1 },
-      { path: p, yf: 0.74, sc: 0.7, speed: 1.0, ph: 5.6 },
+      { path: p, yf: 0.2, sc: 1.15, ph: 0.9 },
+      { path: p, yf: 0.38, sc: 0.8, ph: 2.2 },
+      { path: p, yf: 0.55, sc: 1.0, ph: 4.1 },
+      { path: p, yf: 0.74, sc: 0.7, ph: 5.6 },
     ];
   }
 
@@ -502,8 +502,8 @@ export class Scene {
   }
 
   // plataforma de madera que rodea el tronco en cada piso ya cruzado: tapa
-  // la línea entrecortada en el ancho de la rama y cuelga de un par de
-  // puntales clavados contra el tronco, como si estuviera construida ahí.
+  // la línea entrecortada en el ancho de la rama, apoyada directo contra el
+  // tronco (sin puntales — quedaban mal).
   drawPisoPlataformas() {
     if (state.mode !== 'carrera') return;
     for (let i = 0; i < PISOS.length; i++) {
@@ -532,25 +532,6 @@ export class Scene {
     ctx.lineWidth = 3;
     ctx.fillRect(bx - hw, lineY, hw * 2, FEET_OFFSET);
     ctx.strokeRect(bx - hw, lineY, hw * 2, FEET_OFFSET);
-
-    // puntales: un par de vigas en diagonal que clavan la plataforma al tronco
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = C.tinta;
-    ctx.fillStyle = C.maderaOsc;
-    for (const side of [-1, 1]) {
-      const outerX = bx + side * hw * 0.85;
-      const innerX = bx + side * (this.bw / 2 - 2);
-      const topY = feetY + th;
-      const botY = feetY + th + 24;
-      ctx.beginPath();
-      ctx.moveTo(outerX, topY);
-      ctx.lineTo(innerX, botY);
-      ctx.lineTo(innerX - side * 7, botY);
-      ctx.lineTo(outerX - side * 7, topY);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    }
 
     // el tablón: tres tablas unidas, borde grueso de tinta
     const planks = 3;
@@ -1134,9 +1115,11 @@ export class Scene {
     const g = wind.gustProgress();
 
     if (g > 0) {
+      // los trazos recorren la pantalla al mismo ritmo que la ráfaga (0→1):
+      // así se van de la pantalla justo cuando la ráfaga realmente termina,
+      // en vez de desaparecer antes y dejar la zona angosta sin viento a la vista.
       for (const s of this.strokes) {
-        const p = Math.min(1, g * s.speed);
-        const xoff = -340 + p * (this.W + 700);
+        const xoff = -340 + g * (this.W + 700);
         const y = s.yf * this.H + Math.sin(this.t * 2 + s.ph) * 7;
         ctx.save();
         ctx.translate(xoff, y);
