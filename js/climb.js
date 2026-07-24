@@ -150,6 +150,7 @@ export const climb = {
   leapTo: 0,
   slipFrom: 0,
   slipTo: 0,
+  bonusLeap: false, // true mientras anima el envión de Primosalto (sin arrive())
   result: null, // 'grab' | 'short' | 'over'
   chainSafe: false,
   perfectStreak: 0,
@@ -345,6 +346,18 @@ export const climb = {
     this.phase = 'slipping';
   },
 
+  // Envión gratis de "Primosalto": anima el vuelo con la misma interpolación
+  // de un salto normal, pero sin pasar por arrive() (no hay tirada de mala
+  // suerte, racha ni eventos — es un regalo, no una jugada).
+  startBonusLeap(from, to) {
+    this.jumpStart = from;
+    this.leapTo = to;
+    this.t = 0;
+    this.leapDur = LEAP_TIME * (1 + Math.min(2, Math.abs(to - from) / 25));
+    this.phase = 'leaping';
+    this.bonusLeap = true;
+  },
+
   // al cambiar de modo la máquina vuelve a cero (sin racha heredada)
   resetForMode() {
     this.phase = 'idle';
@@ -365,7 +378,18 @@ export const climb = {
       this.power = Math.min(1, this.power + CHARGE_SPEED * dt);
     } else if (this.phase === 'leaping') {
       this.t += dt / (this.leapDur || LEAP_TIME);
-      if (this.t >= 1) this.arrive();
+      if (this.t >= 1) {
+        if (this.bonusLeap) {
+          this.bonusLeap = false;
+          state.height = this.leapTo;
+          if (state.height > state.bestHeight) state.bestHeight = state.height;
+          this.lastZone = zoneAt(state.height);
+          this.targetKnot = nextKnotIndex(state.height);
+          this.phase = 'idle';
+        } else {
+          this.arrive();
+        }
+      }
     } else if (this.phase === 'slipping') {
       this.t += dt / (this.slipDur || SLIP_TIME);
       if (this.t >= 1) {
