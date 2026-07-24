@@ -304,13 +304,21 @@ export class Scene {
     const { top, bot } = this.branchSpan();
     // el paso escala con el tramo visible para no explotar en puntos
     const step = Math.max(0.3, (top - bot) / 240);
+    // El muestreo se ancla a una GRILLA DE MUNDO (múltiplos de `step`), no a
+    // `top` (que se desliza con la cámara): si arrancáramos en `top`, los
+    // vértices quedan en filas de pantalla fijas pero su altura de mundo se
+    // corre en cada frame, y como edgeWobble() es un seno de la altura, el
+    // borde del tronco ondulaba EN EL LUGAR al hacer scroll (efecto gelatina).
+    // Anclado al mundo, el contorno se desplaza vertical y rígido: el wobble
+    // viaja con la rama en vez de temblar.
+    const start = Math.ceil(top / step) * step;
     // buffers planos reusados entre frames (nada de arrays de [x,y] por frame)
     const lx = this._bLx;
     const ly = this._bLy;
     const rx = this._bRx;
     const ry = this._bRy;
     let n = 0;
-    for (let hh = top; hh >= bot; hh -= step) {
+    for (let hh = start; hh >= bot; hh -= step) {
       const bx = this.branchX(hh);
       const y = this.yOf(hh);
       lx[n] = bx - this.bw / 2 + this.edgeWobble(hh, 1.3);
@@ -353,7 +361,7 @@ export class Scene {
       ctx.beginPath();
       let first = true;
       for (let i = 0; i < n; i++) {
-        const hh = top - i * step;
+        const hh = start - i * step; // misma grilla de mundo que el contorno
         const x = lx[i] + (rx[i] - lx[i]) * f + Math.sin(hh * 3.3 + f * 13) * 3.5;
         if (first) {
           ctx.moveTo(x, ly[i]);
