@@ -29,8 +29,13 @@ const RUN_RESORTE = 0.08; // carrera: +salto base por nivel de "piernas de resor
 // carrera "Racha Divina": al fallar, en vez de reset total, se conserva esta
 // fracción de la racha de perfectos (por nivel; nv0 = reset total de siempre).
 const RACHA_DIVINA_KEEP = [0, 0.3, 0.5, 0.7, 0.8];
-const RUN_VENTIL = 0.05; // carrera "Ventil Forte": ensancha la zona dulce en ráfaga por nivel (nunca más que la base)
-const RUN_VENTIL_PERFECT = 0.012; // mismo upgrade, pero para la micro-zona perfecta (máx nivel: PERFECT_WIND llega a PERFECT_W)
+// "Ventil Forte": recorta el angostamiento del viento sobre la zona dulce (y
+// la micro-zona perfecta), pero NUNCA lo anula del todo — al nivel máximo
+// queda un resto perceptible (VENTIL_KEEP del efecto original), así el jugador
+// siempre nota que "está pasando viento". La curva por nivel es lineal hasta
+// ese tope. VENTIL_MAX debe seguir el `max` del upgrade `ventil` en carrera.js.
+const VENTIL_MAX = 5;
+const VENTIL_KEEP = 0.12;
 // El próximo salto nunca exige menos del 50% de la carga: un nudo más cerca
 // que esto se saltea (nada de perder la racha por un tronco mal posicionado).
 const MIN_TARGET_GAP = MAX_JUMP * 0.5;
@@ -143,6 +148,20 @@ function easeInOut(t) {
   return t * t * (3 - 2 * t);
 }
 
+// "Ventil Forte": dado el semiancho de zona durante la ráfaga (`windW`, que ya
+// puede traer el "abrigo de brisa") y su semiancho base sin viento (`baseW`),
+// recorta el angostamiento del viento según el nivel comprado. Al nivel máximo
+// deja VENTIL_KEEP del angostamiento original (nunca lo anula: sigue habiendo
+// un resto perceptible). Lee state.carrera.upgrades.ventil directo, así también
+// aplica en zen (misma mejora de personaje, mismos niveles ya comprados).
+function ventilWindW(windW, baseW) {
+  const lvl = state.carrera.upgrades.ventil;
+  if (lvl <= 0) return windW;
+  const narrowing = baseW - windW; // lo que el viento angosta (ya con brisa)
+  const kept = narrowing * (VENTIL_KEEP + (1 - VENTIL_KEEP) * (1 - Math.min(1, lvl / VENTIL_MAX)));
+  return baseW - kept;
+}
+
 // ---------- máquina de estados del salto ----------
 export const climb = {
   phase: 'idle', // idle | charging | leaping | slipping
@@ -184,30 +203,31 @@ export const climb = {
   // "resorte" (salto base) y "eco" (base de la racha). La puntería queda
   // siempre a escala base (el árbol no se mueve al apuntar): el salto
   // simplemente te eleva más, pasando ramas enteras si la racha da.
+  // Las mejoras de PERSONAJE compradas en carrera (resorte, eco, ventil,
+  // rachadivina) aplican también en zen, con los mismos niveles ya comprados
+  // (state.carrera.upgrades.* persiste global). Zen no tiene tienda: solo lee
+  // el estado. Quedan afuera las mecánicas propias de la contrarreloj (reloj,
+  // botin) y el primosalto (envión de PARTIDA, ver carrera.js).
   streakBase() {
-    return STREAK_BASE + (state.mode === 'carrera' ? RUN_STREAK_ECO * state.carrera.upgrades.eco : 0);
+    return STREAK_BASE + RUN_STREAK_ECO * state.carrera.upgrades.eco;
   },
   gainMul() {
-    const base = state.mode === 'carrera' ? 1 + RUN_RESORTE * state.carrera.upgrades.resorte : 1;
+    const base = 1 + RUN_RESORTE * state.carrera.upgrades.resorte;
     return base * Math.pow(this.streakBase(), this.perfectStreak);
   },
   sweetW() {
     // "abrigo de brisa": la ráfaga angosta menos la zona dulce
     let windW = state.unlocks.includes('brisa') ? 0.38 : SWEET_WIND;
-    // carrera "Ventil Forte": reduce la reducción del viento, sin pasar la base
-    if (state.mode === 'carrera') {
-      windW = Math.min(SWEET_BASE, windW + RUN_VENTIL * state.carrera.upgrades.ventil);
-    }
+    // "Ventil Forte" (mejora de personaje, aplica en ambos modos): recorta el
+    // angostamiento del viento pero deja un resto perceptible al nivel máx.
+    windW = ventilWindW(windW, SWEET_BASE);
     return (wind.windy() ? windW : SWEET_BASE) * zoneAt(state.height).sweetMul * this.mods.sweetMul();
   },
   // la micro-zona perfecta se angosta todavía más con ráfaga (el "abrigo de
-  // brisa" solo protege la zona dulce general, no la de precisión); carrera
-  // "Ventil Forte" sí protege también la de precisión, mismo trato que sweetW
+  // brisa" solo protege la zona dulce general, no la de precisión); "Ventil
+  // Forte" sí protege también la de precisión, con el mismo trato que sweetW
   perfectW() {
-    let windW = PERFECT_WIND;
-    if (state.mode === 'carrera') {
-      windW = Math.min(PERFECT_W, windW + RUN_VENTIL_PERFECT * state.carrera.upgrades.ventil);
-    }
+    const windW = ventilWindW(PERFECT_WIND, PERFECT_W);
     return wind.windy() ? windW : PERFECT_W;
   },
   landingH() {
@@ -276,8 +296,8 @@ export const climb = {
   // habilidad/mala suerte solo la RECORTA (conserva una fracción); `hard` fuerza
   // el reset total (cambio de modo, fin de carrera, arranque de una run nueva).
   breakStreak(hard = false) {
-    const keep =
-      !hard && state.mode === 'carrera' ? RACHA_DIVINA_KEEP[state.carrera.upgrades.rachadivina] || 0 : 0;
+    // "Racha Divina" es mejora de personaje: aplica en ambos modos (zen incluido)
+    const keep = !hard ? RACHA_DIVINA_KEEP[state.carrera.upgrades.rachadivina] || 0 : 0;
     this.perfectStreak = keep > 0 ? Math.floor(this.perfectStreak * keep) : 0;
     this.streakMult = Math.pow(this.streakBase(), this.perfectStreak);
   },

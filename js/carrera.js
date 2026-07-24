@@ -68,7 +68,7 @@ export const R_UPGRADES = [
   {
     id: 'ventil',
     name: 'Ventil Forte',
-    desc: 'Pulmón de fuelle: la ráfaga te angosta menos la zona dulce (reduce el efecto del viento por nivel).',
+    desc: 'Pulmón de fuelle: la ráfaga te angosta menos la zona dulce por nivel. Ni al máximo la anula del todo: siempre se siente algo de viento.',
     baseCost: 70,
     growth: 1.85,
     max: 5,
@@ -78,6 +78,11 @@ export const R_UPGRADES = [
 // Metros del envión de partida ("Primosalto"): progresión fija por nivel
 // (20, 50, 100…) que después se duplica, para que los primeros niveles no
 // regalen de entrada un salto gigante.
+// A diferencia de las otras mejoras de personaje (resorte/eco/ventil/racha
+// divina, que aplican en ambos modos), el Primosalto es un envión de PARTIDA
+// exclusivo de la carrera: se dispara en run.onPress() al arrancar una
+// contrarreloj. El zen es escalada libre persistente, no tiene "partida" desde
+// la tierra que pueda recibir el envión, así que queda carrera-only a propósito.
 const PRIMOSALTO_METROS = [20, 50, 100, 200, 400, 800, 1600, 3200];
 export function primosaltoMetros() {
   const lvl = state.carrera.upgrades.primosalto;
